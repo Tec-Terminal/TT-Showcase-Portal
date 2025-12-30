@@ -1,0 +1,12 @@
+package.json:
+
+"postbuild": "prisma migrate reset --force --skip-generate && prisma generate && prisma migrate deploy && prisma db seed",
+"postbuild": "prisma migrate deploy",
+
+
+Docker:
+
+docker run -d -p 6379:6379 --name redis redis:alpine
+docker start redis
+docker exec -it redis redis-cli ping
+ 
