@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import PaymentConfiguration from "./PaymentConfiguration";
 import Image from "next/image";
 import Link from "next/link";
@@ -10,6 +11,7 @@ import { LogOut, ArrowRightLeft } from "lucide-react";
 import { HiLogout } from "react-icons/hi";
 import { useRequireAuth } from "@/hooks/useAuth";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { logoutUser } from "@/lib/network";
 
 const STORAGE_KEY = "onboarding_form_data";
 
@@ -26,6 +28,7 @@ interface PaymentPlan {
 
 export default function OnboardingFlow({ initialData }: { initialData: any }) {
   const { isLoading: isAuthLoading } = useRequireAuth();
+  const router = useRouter();
   const [userEmail, setUserEmail] = useState<string>("");
   
   // Load saved data from localStorage on mount
@@ -152,6 +155,20 @@ export default function OnboardingFlow({ initialData }: { initialData: any }) {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      // Preserve localStorage so user can continue onboarding after logging back in
+      // Redirect to login
+      router.push('/auth/login');
+      router.refresh();
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still redirect even if logout API call fails
+      router.push('/auth/login');
+    }
+  };
+
   // Show loading while auth is loading or data is being restored
   if (isAuthLoading || !isRestored) {
     return (
@@ -183,7 +200,11 @@ export default function OnboardingFlow({ initialData }: { initialData: any }) {
               </p>
               <p className="text-[11px] text-gray-500 mt-1">ID: TT-637N</p>
             </div>
-            <button className="text-gray-400 hover:text-red-500 transition-colors">
+            <button 
+              onClick={handleLogout}
+              className="text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
+              title="Logout"
+            >
               <LogOut size={20} />
             </button>
           </div>
