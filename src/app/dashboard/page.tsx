@@ -21,13 +21,13 @@ export default async function DashboardPage() {
   try {
     const response = await getStudentDashboardData();
     dashboardData = response.data || response;
-
   } catch (error: any) {
     console.error("Error fetching dashboard data:", error);
     // Fallback to empty data if API fails
     dashboardData = {
       profile: null,
       courses: [],
+      currentCourse: null,
       currentBatch: null,
     };
   }
@@ -234,11 +234,11 @@ export default async function DashboardPage() {
                     Current Course
                   </p>
                   <h2 className="text-lg font-bold text-gray-900 leading-tight">
-                    {course?.name || "No course assigned"}
+                    {dashboardData.currentCourse.name || "No course assigned"}
                   </h2>
                   <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
                     <Clock size={15} />
-                    {batchDuration} months
+                    {dashboardData.currentCourse.duration} months
                   </p>
                 </div>
                 <div className="p-4 rounded-lg border border-gray-200 bg-gray-50/30">
