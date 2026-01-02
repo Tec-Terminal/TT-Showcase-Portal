@@ -24,7 +24,8 @@ export interface LoginCredentials {
 export interface RegisterData {
   email: string;
   password: string;
-  fullName: string;
+  firstName: string;
+  lastName: string;
   phone?: string;
 }
 
@@ -445,8 +446,11 @@ export const fundWalletClient = async (data: FundWalletRequest): Promise<FundWal
 };
 
 export interface PayInstallmentRequest {
-  installmentId: string;
+  paymentId?: string; // For actual payment records
+  installmentId?: string; // For virtual installments
   paymentSource: 'wallet' | 'paystack';
+  amount?: number; // Optional: allows paying more than minimum
+  paymentPlanId?: string; // Required for virtual installments
 }
 
 export interface PayInstallmentResponse {

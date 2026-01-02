@@ -24,14 +24,18 @@ export default function PayInstallment({
   const [method, setMethod] = useState<"wallet" | "card">("wallet");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editableAmount, setEditableAmount] = useState<string>("");
 
   // Reset state when modal opens/closes
   useEffect(() => {
     if (show) {
       setError(null);
       setLoading(false);
-      // Set default method based on wallet balance
+      // Initialize editable amount with the passed amount
       const amountNum = parseFloat(amount.replace(/[₦,]/g, "")) || 0;
+      setEditableAmount(amountNum.toString());
+      
+      // Set default method based on wallet balance
       const balance = walletBalance || 0;
       
       if (balance >= amountNum && amountNum > 0) {
@@ -76,13 +80,42 @@ export default function PayInstallment({
       return;
     }
 
+    // Determine if this is a virtual installment or actual payment
+    const isVirtualInstallment = installment.id.startsWith('installment-');
+    // Use editable amount if available, otherwise fall back to prop amount
+    const amountNum = parseFloat(editableAmount) || parseFloat(amount.replace(/[₦,]/g, "")) || 0;
+    const minimumAmount = installment.minimumAmount || installment.amount || amountNum;
+
+    // Validate amount
+    if (amountNum < minimumAmount) {
+      setError(`Amount must be at least ${amount.replace("₦", "").replace(/,/g, "")}`);
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const requestData = {
-        installmentId: installment.id.trim(),
+      // Prepare payment request
+      const requestData: any = {
         paymentSource: paymentSource as 'wallet' | 'paystack',
+        paymentPlanId: installment.paymentPlanId,
       };
+
+      if (isVirtualInstallment) {
+        // For virtual installments, use installmentId
+        requestData.installmentId = installment.id.trim();
+        // Use custom amount if provided and different from default
+        if (amountNum > minimumAmount) {
+          requestData.amount = amountNum;
+        }
+      } else {
+        // For actual payment records, use paymentId
+        requestData.paymentId = installment.id.trim();
+        // Allow custom amount if provided and different from default
+        if (amountNum > installment.amount) {
+          requestData.amount = amountNum;
+        }
+      }
       
       const response = await payInstallmentClient(requestData);
 
@@ -157,7 +190,7 @@ export default function PayInstallment({
     }
   };
 
-  const amountNum = parseFloat(amount.replace(/[₦,]/g, ""));
+  const amountNum = parseFloat(editableAmount) || parseFloat(amount.replace(/[₦,]/g, "")) || 0;
   const hasSufficientBalance = walletBalance >= amountNum;
   const balanceShortage = amountNum - walletBalance;
 
@@ -186,10 +219,29 @@ export default function PayInstallment({
           <div>
             <label className="text-sm font-semibold text-gray-700 block mb-2">
               Payment Amount
+              {installment?.minimumAmount && (
+                <span className="text-xs text-gray-500 font-normal ml-2">
+                  (Min: ₦{installment.minimumAmount.toLocaleString()})
+                </span>
+              )}
             </label>
-            <div className="w-full pl-4 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-xl font-medium text-gray-600 flex items-center gap-2">
-              <span>₦</span> {amount.replace("₦", "").replace(/,/g, "")}
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 font-medium">₦</span>
+              <input
+                type="number"
+                min={installment?.minimumAmount || installment?.amount || 0}
+                step="0.01"
+                value={editableAmount}
+                onChange={(e) => setEditableAmount(e.target.value)}
+                className="w-full pl-8 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-xl font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder={`Enter amount (min: ₦${(installment?.minimumAmount || installment?.amount || 0).toLocaleString()})`}
+              />
             </div>
+            {installment?.minimumAmount && (
+              <p className="text-xs text-gray-500 mt-1">
+                You can pay more than the minimum amount of ₦{installment.minimumAmount.toLocaleString()}
+              </p>
+            )}
           </div>
 
           {/* Payment Source */}

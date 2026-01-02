@@ -45,23 +45,43 @@ export default function ProfileForm({ initialData, onNext }: ProfileFormProps) {
 
   const selectedLocation = watch("trainingLocation");
 
-  // Load locations on mount
+  // Load locations on mount - only show states that have centers
   useEffect(() => {
     const loadLocations = async () => {
       try {
         setLoadingLocations(true);
         setLocationError(null);
-        const data = await onboardingService.getLocations();
+        const allLocations = await onboardingService.getLocations();
         
         // Ensure data is an array
-        if (Array.isArray(data)) {
-          setLocations(data);
-          if (data.length === 0) {
-            setLocationError("No locations available at this time.");
-          }
-        } else {
-          console.error("Invalid response format:", data);
+        if (!Array.isArray(allLocations)) {
+          console.error("Invalid response format:", allLocations);
           setLocationError("Invalid data format received from server.");
+          setLoadingLocations(false);
+          return;
+        }
+
+        // Check which locations have centers
+        const locationsWithCenters = await Promise.all(
+          allLocations.map(async (location) => {
+            try {
+              const centersData = await onboardingService.getCentersByLocation(location.id);
+              return centersData.centers && centersData.centers.length > 0 ? location : null;
+            } catch (error) {
+              // If error fetching centers, exclude this location
+              return null;
+            }
+          })
+        );
+
+        // Filter out null values (locations without centers)
+        const filteredLocations = locationsWithCenters.filter(
+          (location): location is Location => location !== null
+        );
+
+        setLocations(filteredLocations);
+        if (filteredLocations.length === 0) {
+          setLocationError("No locations with available centers at this time.");
         }
       } catch (error) {
         console.error("Error loading locations:", error);
@@ -169,14 +189,35 @@ export default function ProfileForm({ initialData, onNext }: ProfileFormProps) {
                       try {
                         setLoadingLocations(true);
                         setLocationError(null);
-                        const data = await onboardingService.getLocations();
-                        if (Array.isArray(data)) {
-                          setLocations(data);
-                          if (data.length === 0) {
-                            setLocationError("No locations available at this time.");
-                          }
-                        } else {
+                        const allLocations = await onboardingService.getLocations();
+                        
+                        if (!Array.isArray(allLocations)) {
                           setLocationError("Invalid data format received from server.");
+                          setLoadingLocations(false);
+                          return;
+                        }
+
+                        // Check which locations have centers
+                        const locationsWithCenters = await Promise.all(
+                          allLocations.map(async (location) => {
+                            try {
+                              const centersData = await onboardingService.getCentersByLocation(location.id);
+                              return centersData.centers && centersData.centers.length > 0 ? location : null;
+                            } catch (error) {
+                              // If error fetching centers, exclude this location
+                              return null;
+                            }
+                          })
+                        );
+
+                        // Filter out null values (locations without centers)
+                        const filteredLocations = locationsWithCenters.filter(
+                          (location): location is Location => location !== null
+                        );
+
+                        setLocations(filteredLocations);
+                        if (filteredLocations.length === 0) {
+                          setLocationError("No locations with available centers at this time.");
                         }
                       } catch (error) {
                         const errorMessage = error instanceof Error ? error.message : "Failed to load locations. Please try again.";

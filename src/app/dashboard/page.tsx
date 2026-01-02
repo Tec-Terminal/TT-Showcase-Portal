@@ -15,7 +15,6 @@ import LogoutButton from "@/components/auth/LogoutButton";
 export default async function DashboardPage() {
   await requireAuthAndProfile();
 
-  // Fetch real dashboard data
   let dashboardData;
 
   try {
@@ -23,7 +22,6 @@ export default async function DashboardPage() {
     dashboardData = response.data || response;
   } catch (error: any) {
     console.error("Error fetching dashboard data:", error);
-    // Fallback to empty data if API fails
     dashboardData = {
       profile: null,
       courses: [],
@@ -32,11 +30,10 @@ export default async function DashboardPage() {
     };
   }
 
-  // Fetch notifications (fetch more to show in modal, but display only 2)
+  // Fetch notifications
   let notifications = [];
   try {
     const notificationsResponse = await getNotifications({ limit: 20 });
-    // Normalized response format: { data: [...], pagination: {...} }
     notifications =
       notificationsResponse.data || notificationsResponse.notifications || [];
   } catch (error: any) {
@@ -53,7 +50,7 @@ export default async function DashboardPage() {
     console.error("Error fetching profile:", error);
   }
 
-  // Extract data with fallbacks - prioritize profile data over dashboard data
+  // Extract data with fallbacks 
   const student = profileData?.data ||
     profileData ||
     dashboardData.profile ||
@@ -117,7 +114,38 @@ export default async function DashboardPage() {
     null;
 
   // Get next payment information from upcomingPayments array
-  const upcomingPayments = dashboardData.upcomingPayments || [];
+  // Filter out payments that are already paid (status APPROVED or PAID)
+  const allPayments = dashboardData.upcomingPayments || [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
+  
+  const upcomingPayments = allPayments
+    .filter((payment: any) => {
+      const status = payment.status?.toUpperCase();
+      // Filter out paid payments
+      if (status === 'APPROVED' || status === 'PAID' || status === 'COMPLETED') {
+        return false;
+      }
+      
+      // Only include payments with valid due dates in the future or today
+      if (payment.dueDate) {
+        const dueDate = new Date(payment.dueDate);
+        dueDate.setHours(0, 0, 0, 0);
+        // Include if due date is today or in the future
+        return dueDate >= today;
+      }
+      
+      return true;
+    })
+    .sort((a: any, b: any) => {
+      // Sort by due date (earliest first)
+      if (a.dueDate && b.dueDate) {
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      }
+      return 0;
+    });
+  
+  // Get the next payment (first unpaid payment)
   const nextPayment = upcomingPayments.length > 0 ? upcomingPayments[0] : null;
 
   // Format schedule string
@@ -127,7 +155,7 @@ export default async function DashboardPage() {
     }
 
     const scheduleStrings = schedules.map((schedule: any) => {
-      const day = schedule.day?.substring(0, 3) || schedule.day; // "Monday" -> "Mon"
+      const day = schedule.day?.substring(0, 3) || schedule.day; 
       return `${day} (${schedule.startTime} - ${schedule.endTime})`;
     });
 
@@ -139,7 +167,7 @@ export default async function DashboardPage() {
   const batchDuration =
     batch?.duration || (course?.duration ? `${course.duration} Weeks` : "N/A");
 
-  // Format payment message (e.g., "Installment 1 of 2" -> "2 Total Installments")
+  // Format payment message
   const formatPaymentMessage = (message: string) => {
     // Check if message is in format "Installment X of Y"
     const installmentMatch = message.match(/Installment\s+\d+\s+of\s+(\d+)/i);
@@ -151,16 +179,13 @@ export default async function DashboardPage() {
     return message;
   };
 
-  // Progress should be 0 for now (not filled)
+  // Progress should be 0 for now
   const progress = 0;
 
-  // Determine progress text based on batch assignment
   const getProgressText = () => {
     if (!batch || batchCode === "Not yet assigned to a batch") {
       return "Classes have not started";
     }
-    // If batch is assigned, you can show week number here in the future
-    // For now, just show "Classes have not started" if no batch
     return "Classes have not started";
   };
 
@@ -170,13 +195,15 @@ export default async function DashboardPage() {
       <nav className="bg-white border-b border-gray-200 px-8 py-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-8">
-            <Image
-              src="/images/Logo.png"
-              alt="TT Showcase"
-              width={140}
-              height={35}
-              className="object-contain"
-            />
+            <Link href="/">
+              <Image
+                src="/images/Logo.png"
+                alt="TT Showcase"
+                width={140}
+                height={35}
+                className="object-contain"
+              />
+            </Link>
             <div className="hidden md:flex gap-6">
               <Link
                 href="/dashboard"

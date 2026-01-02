@@ -40,6 +40,20 @@ export default function SelectCourse({
         
         // Ensure data is an array
         if (Array.isArray(data)) {
+          console.log("All courses loaded:", data);
+          // Log detailed payment info for each course
+          data.forEach((course) => {
+            console.log(`Course: ${course.name}`, {
+              id: course.id,
+              minFee: course.paymentInfo?.minFee,
+              maxFee: course.paymentInfo?.maxFee,
+              byCenter: course.paymentInfo?.byCenter?.map((centerInfo) => ({
+                centerName: centerInfo.center?.name,
+                baseFee: centerInfo.baseFee,
+                lumpSumFee: centerInfo.lumpSumFee,
+              })),
+            });
+          });
           setCourses(data);
           if (data.length === 0) {
             setError("No courses available at this time.");
@@ -96,7 +110,7 @@ export default function SelectCourse({
     }
   };
 
-  // Get payment info for selected center or use first available
+  // Get payment info for selected center or use center with minimum baseFee
   const getPaymentInfo = (course: Course) => {
     if (!course.paymentInfo?.byCenter || course.paymentInfo.byCenter.length === 0) {
       return null;
@@ -110,7 +124,10 @@ export default function SelectCourse({
       if (centerInfo) return centerInfo;
     }
     
-    return course.paymentInfo.byCenter[0];
+    // When no center is selected, use the center with the minimum baseFee
+    return course.paymentInfo.byCenter.reduce((min, current) => 
+      current.baseFee < min.baseFee ? current : min
+    );
   };
 
   return (
@@ -188,6 +205,13 @@ export default function SelectCourse({
               return null; // Skip courses without payment info
             }
 
+            // Debug: Log payment info for the course
+            console.log(`Course: ${course.name} - Payment Info:`, {
+              centerName: paymentInfo.center?.name,
+              baseFee: paymentInfo.baseFee,
+              lumpSumFee: paymentInfo.lumpSumFee,
+            });
+
             return (
               <div
                 key={course.id}
@@ -203,11 +227,11 @@ export default function SelectCourse({
                     {course.name}
                   </h3>
                   <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-full whitespace-nowrap">
-                    <Clock size={13} strokeWidth={2.5} /> {course.duration} Weeks
+                    <Clock size={13} strokeWidth={2.5} /> {course.duration} Months
                   </div>
                 </div>
 
-                {/* Description - You can add description field to Course type if available */}
+                {/* Description */}
                 {/* <p className="text-sm text-gray-500 leading-relaxed mb-10">
                   {course.description}
                 </p> */}
@@ -299,7 +323,7 @@ export default function SelectCourse({
                       <button
                         key={page}
                         onClick={() => goToPage(page)}
-                        className={`min-w-[40px] px-3 py-2 rounded-lg font-medium text-sm transition-all ${
+                        className={`min-w-10 px-3 py-2 rounded-lg font-medium text-sm transition-all ${
                           currentPage === page
                             ? "bg-[#6344F5] text-white shadow-md"
                             : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-[#6344F5] hover:text-[#6344F5]"

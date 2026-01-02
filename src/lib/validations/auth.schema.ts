@@ -17,11 +17,16 @@ export type LoginFormData = yup.InferType<typeof loginSchema> & {
 
 
 export const registerSchema = yup.object({
-  fullName: yup
+  firstName: yup
     .string()
-    .min(2, 'Full name must be at least 2 characters')
-    .max(100, 'Full name must be less than 100 characters')
-    .required('Full name is required'),
+    .min(2, 'First name must be at least 2 characters')
+    .max(50, 'First name must be less than 50 characters')
+    .required('First name is required'),
+  lastName: yup
+    .string()
+    .min(2, 'Last name must be at least 2 characters')
+    .max(50, 'Last name must be less than 50 characters')
+    .required('Last name is required'),
   email: yup
     .string()
     .email('Please enter a valid email address')
@@ -46,7 +51,8 @@ export const registerSchema = yup.object({
 });
 
 export type RegisterFormData = {
-  fullName: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phone: string | null | undefined;
   password: string;

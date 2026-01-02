@@ -12,8 +12,19 @@ import { BiWallet } from "react-icons/bi";
 import PayInstallment from "@/components/modals/PayInstallment";
 import { useRequireAuth } from "@/hooks/useAuth";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { getPaymentsOverviewClient, getProfileClient, getPaymentsClient, getInvoicesClient, verifyWalletFundingClient, verifyInstallmentPaymentClient } from "@/lib/network";
-import { PaymentsOverview, PaymentScheduleItem, PaymentBreakdownItem } from "@/types/student-portal.types";
+import {
+  getPaymentsOverviewClient,
+  getProfileClient,
+  getPaymentsClient,
+  getInvoicesClient,
+  verifyWalletFundingClient,
+  verifyInstallmentPaymentClient,
+} from "@/lib/network";
+import {
+  PaymentsOverview,
+  PaymentScheduleItem,
+  PaymentBreakdownItem,
+} from "@/types/student-portal.types";
 import PaymentReceipt from "@/components/receipt/PaymentReceipt";
 import { formatDate } from "@/lib/utils/errorHandler";
 import LogoutButton from "@/components/auth/LogoutButton";
@@ -23,115 +34,137 @@ export default function PaymentsPage() {
   const [showFundModal, setShowFundModal] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
   const [fundAmount, setFundAmount] = useState("");
-  const [selectedInstallment, setSelectedInstallment] = useState<PaymentScheduleItem | null>(null);
-  const [paymentsData, setPaymentsData] = useState<PaymentsOverview | null>(null);
-  const [studentProfile, setStudentProfile] = useState<{ fullName: string; studentId: string; centerName?: string } | null>(null);
+  const [selectedInstallment, setSelectedInstallment] =
+    useState<PaymentScheduleItem | null>(null);
+  const [paymentsData, setPaymentsData] = useState<PaymentsOverview | null>(
+    null
+  );
+  const [studentProfile, setStudentProfile] = useState<{
+    fullName: string;
+    studentId: string;
+    centerName?: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  const [selectedPaymentForReceipt, setSelectedPaymentForReceipt] = useState<PaymentBreakdownItem | null>(null);
+  const [selectedPaymentForReceipt, setSelectedPaymentForReceipt] =
+    useState<PaymentBreakdownItem | null>(null);
+  const [customAmount, setCustomAmount] = useState<number | null>(null);
+  const [showAmountInput, setShowAmountInput] = useState<string | null>(null);
 
   // Function to fetch payments data
   const fetchPaymentsData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Fetch payments overview from the backend
       const payments = await getPaymentsOverviewClient();
-      
+
       // Validate response structure
       if (!payments) {
         throw new Error("Invalid response from server");
       }
-      
+
       // Ensure all required fields exist
       const validatedPayments: PaymentsOverview = {
         walletBalance: payments.walletBalance ?? 0,
-        paymentSchedule: Array.isArray(payments.paymentSchedule) ? payments.paymentSchedule : [],
-        paymentBreakdown: Array.isArray(payments.paymentBreakdown) ? payments.paymentBreakdown : [],
+        paymentSchedule: Array.isArray(payments.paymentSchedule)
+          ? payments.paymentSchedule
+          : [],
+        paymentBreakdown: Array.isArray(payments.paymentBreakdown)
+          ? payments.paymentBreakdown
+          : [],
       };
-      
+
       setPaymentsData(validatedPayments);
     } catch (err: any) {
-        console.error("❌ Error fetching payments:", err);
-        
-        // Handle specific error cases
-        if (err.response) {
-          const status = err.response.status;
-          const errorData = err.response.data;
-          
-          switch (status) {
-            case 401:
-              setError("Your session has expired. Please log in again.");
-              // Redirect to login after a delay
-              setTimeout(() => {
-                window.location.href = '/auth/login';
-              }, 2000);
-              break;
-            case 403:
-              setError("Access denied. You may not have permission to view payment information. Please contact support if you believe this is an error.");
-              break;
-            case 404:
-              setError(
-                "Payments endpoint not found (404). " +
+      console.error("Error fetching payments:", err);
+
+      // Handle specific error cases
+      if (err.response) {
+        const status = err.response.status;
+        const errorData = err.response.data;
+
+        switch (status) {
+          case 401:
+            setError("Your session has expired. Please log in again.");
+            // Redirect to login after a delay
+            setTimeout(() => {
+              window.location.href = "/auth/login";
+            }, 2000);
+            break;
+          case 403:
+            setError(
+              "Access denied. You may not have permission to view payment information. Please contact support if you believe this is an error."
+            );
+            break;
+          case 404:
+            setError(
+              "Payments endpoint not found (404). " +
                 "Please ensure:\n" +
                 "1. The backend server is running\n" +
                 "2. The backend route '/portal/student/payments-overview' is implemented\n" +
                 "3. The backend server has been restarted after the route change\n" +
                 "4. Check the backend logs for route registration"
-              );
-              console.error("404 Error Details:", {
-                endpoint: "/portal/student/payments-overview",
-                fullUrl: err.config?.url,
-                baseURL: err.config?.baseURL,
-              });
-              break;
-            default:
-              setError(errorData?.message || err.message || "Failed to load payments data. Please try again.");
-          }
-        } else if (err.request) {
-          setError("Network error. Please check your connection and try again.");
-        } else {
-          setError(err.message || "An unexpected error occurred. Please try again.");
+            );
+            console.error("404 Error Details:", {
+              endpoint: "/portal/student/payments-overview",
+              fullUrl: err.config?.url,
+              baseURL: err.config?.baseURL,
+            });
+            break;
+          default:
+            setError(
+              errorData?.message ||
+                err.message ||
+                "Failed to load payments data. Please try again."
+            );
         }
-        
-        // Set empty data on error
-        setPaymentsData({
-          walletBalance: 0,
-          paymentSchedule: [],
-          paymentBreakdown: [],
-        });
-      } finally {
-        setLoading(false);
+      } else if (err.request) {
+        setError("Network error. Please check your connection and try again.");
+      } else {
+        setError(
+          err.message || "An unexpected error occurred. Please try again."
+        );
       }
 
-      // Fetch student profile for header (separate try-catch so it doesn't block payments)
-      try {
-        const profileResponse = await getProfileClient();
-        const profileData = profileResponse.data || profileResponse;
-        if (profileData) {
-          setStudentProfile({
-            fullName: profileData.fullName || "Student",
-            studentId: profileData.studentId || "N/A",
-            centerName: profileData.center?.name || "N/A",
-          });
-        } else {
-          setStudentProfile({
-            fullName: "Student",
-            studentId: "N/A",
-            centerName: "N/A",
-          });
-        }
-      } catch (profileError: any) {
-        console.warn("Could not fetch student profile for header:", profileError);
-        // Use fallback - don't block the page if profile fetch fails
+      // Set empty data on error
+      setPaymentsData({
+        walletBalance: 0,
+        paymentSchedule: [],
+        paymentBreakdown: [],
+      });
+    } finally {
+      setLoading(false);
+    }
+
+    // Fetch student profile for header (separate try-catch so it doesn't block payments)
+    try {
+      const profileResponse = await getProfileClient();
+      const profileData = profileResponse.data || profileResponse;
+      if (profileData) {
+        setStudentProfile({
+          fullName: profileData.fullName || "Student",
+          studentId: profileData.studentId || "N/A",
+          centerName: profileData.center?.name || "N/A",
+        });
+      } else {
         setStudentProfile({
           fullName: "Student",
           studentId: "N/A",
           centerName: "N/A",
         });
       }
+    } catch (profileError: any) {
+      console.warn("Could not fetch student profile for header:", profileError);
+      // Use fallback - don't block the page if profile fetch fails
+      setStudentProfile({
+        fullName: "Student",
+        studentId: "N/A",
+        centerName: "N/A",
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -140,88 +173,106 @@ export default function PaymentsPage() {
     }
   }, [isAuthLoading]);
 
-  // Handle Paystack callback - check for success/error in URL params
+  // Handle Paystack callback
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
-      const reference = urlParams.get('reference');
-      const trxref = urlParams.get('trxref');
-      const status = urlParams.get('status');
+      const reference = urlParams.get("reference");
+      const trxref = urlParams.get("trxref");
+      const status = urlParams.get("status");
 
       // If we have payment callback params, handle them
       const paymentReference = reference || trxref;
       if (paymentReference) {
         const handlePaymentCallback = async () => {
           try {
-            // Check if this is an installment payment
-            // Installment payments use references starting with INST_ or we check sessionStorage
-            const pendingInstallmentRef = sessionStorage.getItem('pendingInstallmentPayment');
-            const isInstallmentPayment = paymentReference.startsWith('INST_') || 
-                                        pendingInstallmentRef !== null;
-            
+            const pendingInstallmentRef = sessionStorage.getItem(
+              "pendingInstallmentPayment"
+            );
+            const isInstallmentPayment =
+              paymentReference.startsWith("INST_") ||
+              pendingInstallmentRef !== null;
+
             if (isInstallmentPayment) {
-              // Verify installment payment using the Paystack reference
-              // Use the reference from Paystack callback (paymentReference) not the stored one
               await verifyInstallmentPaymentClient(paymentReference);
-              
+
               // Clear the stored reference after successful verification
-              sessionStorage.removeItem('pendingInstallmentPayment');
+              sessionStorage.removeItem("pendingInstallmentPayment");
             } else {
               // Verify wallet funding
               await verifyWalletFundingClient(paymentReference);
             }
-            
+
             // Wait a moment for backend to process
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
             // Refresh data to show updated balance/payments
             await fetchPaymentsData();
-            
+
             // Clean up URL
-            window.history.replaceState({}, document.title, window.location.pathname);
+            window.history.replaceState(
+              {},
+              document.title,
+              window.location.pathname
+            );
           } catch (err: any) {
-            console.error("❌ Error verifying payment:", err);
+            console.error("Error verifying payment:", err);
             setError(
               err.response?.data?.message ||
-              err.message ||
-              "Payment verification failed. Please contact support if the payment was successful."
+                err.message ||
+                "Payment verification failed. Please contact support if the payment was successful."
             );
-            
+
             // Clear stored reference on error
-            sessionStorage.removeItem('pendingInstallmentPayment');
-            
+            sessionStorage.removeItem("pendingInstallmentPayment");
+
             // Still refresh data in case payment was successful but verification failed
             setTimeout(() => {
               fetchPaymentsData();
             }, 2000);
-            
+
             // Clean up URL
-            window.history.replaceState({}, document.title, window.location.pathname);
+            window.history.replaceState(
+              {},
+              document.title,
+              window.location.pathname
+            );
           }
         };
 
         // Only verify if status indicates success or if no status (Paystack sometimes doesn't include it)
-        if (status === 'success' || urlParams.get('success') === 'true' || !status) {
+        if (
+          status === "success" ||
+          urlParams.get("success") === "true" ||
+          !status
+        ) {
           handlePaymentCallback();
-        } else if (status === 'failed' || urlParams.get('success') === 'false') {
+        } else if (
+          status === "failed" ||
+          urlParams.get("success") === "false"
+        ) {
           // Payment failed
-          console.error("❌ Payment failed");
+          console.error("Payment failed");
           setError("Payment was not successful. Please try again.");
-          
+
           // Clear stored reference on failure
-          sessionStorage.removeItem('pendingInstallmentPayment');
-          
+          sessionStorage.removeItem("pendingInstallmentPayment");
+
           // Clean up URL
-          window.history.replaceState({}, document.title, window.location.pathname);
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname
+          );
         }
       }
     }
   }, [fetchPaymentsData]);
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-NG', {
-      style: 'currency',
-      currency: 'NGN',
+    return new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
@@ -233,15 +284,13 @@ export default function PaymentsPage() {
     let dateString: string;
     if (dateInput instanceof Date) {
       dateString = dateInput.toISOString();
-    } else if (typeof dateInput === 'string') {
+    } else if (typeof dateInput === "string") {
       dateString = dateInput;
     } else {
       return String(dateInput);
     }
-    
-    // According to the guide, dates are already in MM/DD/YYYY format
-    // But handle both formats for safety
-    if (dateString.includes('/')) {
+
+    if (dateString.includes("/")) {
       return dateString;
     }
     // If it's an ISO date, format it
@@ -250,10 +299,10 @@ export default function PaymentsPage() {
       if (isNaN(date.getTime())) {
         return dateString; // Return as-is if invalid date
       }
-      return date.toLocaleDateString('en-US', {
-        month: '2-digit',
-        day: '2-digit',
-        year: 'numeric',
+      return date.toLocaleDateString("en-US", {
+        month: "2-digit",
+        day: "2-digit",
+        year: "numeric",
       });
     } catch (error) {
       return dateString;
@@ -269,10 +318,10 @@ export default function PaymentsPage() {
     try {
       setIsGeneratingPDF(true);
       setSelectedPaymentForReceipt(payment);
-      
+
       // Wait a bit to ensure the receipt is rendered
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       const receiptElement = document.getElementById("receipt-content");
       if (!receiptElement) {
         throw new Error("Receipt element not found");
@@ -314,32 +363,43 @@ export default function PaymentsPage() {
       // Create PDF
       const jsPDF = (await import("jspdf")).default;
       const pdf = new jsPDF("p", "mm", "a4");
-      
+
       // Scale down if content is taller than one page to fit on single page
       let finalPdfHeight = pdfHeight;
       let finalPdfWidth = pdfWidth;
-      
+
       if (pdfHeight > pageHeight) {
         // Scale down proportionally to fit on one page
         const scale = pageHeight / pdfHeight;
         finalPdfHeight = pageHeight;
         finalPdfWidth = pdfWidth * scale;
       }
-      
+
       // Add image to PDF (single page)
-      pdf.addImage(imgData, "PNG", (210 - finalPdfWidth) / 2, 0, finalPdfWidth, finalPdfHeight);
+      pdf.addImage(
+        imgData,
+        "PNG",
+        (210 - finalPdfWidth) / 2,
+        0,
+        finalPdfWidth,
+        finalPdfHeight
+      );
 
       // Generate filename
       const sanitizedName = (studentProfile?.fullName || "receipt")
         .replace(/[^a-z0-9]/gi, "_")
         .toLowerCase();
-      const filename = `payment_receipt_${sanitizedName}_${payment.reference || Date.now()}.pdf`;
+      const filename = `payment_receipt_${sanitizedName}_${
+        payment.reference || Date.now()
+      }.pdf`;
 
       // Download PDF
       pdf.save(filename);
     } catch (error: any) {
       console.error("Error downloading receipt:", error);
-      alert(`Failed to download receipt: ${error.message || "Please try again."}`);
+      alert(
+        `Failed to download receipt: ${error.message || "Please try again."}`
+      );
     } finally {
       setIsGeneratingPDF(false);
       // Keep the receipt data for a moment in case user wants to try again
@@ -378,19 +438,29 @@ export default function PaymentsPage() {
   const paymentSchedule = paymentsData?.paymentSchedule || [];
   const paymentBreakdown = paymentsData?.paymentBreakdown || [];
 
+  // Separate payments and installments
+  const paidPayments = paymentSchedule.filter(
+    (item) => item.isPayment && item.status === "PAID"
+  );
+  const pendingInstallments = paymentSchedule.filter(
+    (item) => !item.isPayment || item.status === "PENDING"
+  );
+
   return (
     <div className="min-h-screen bg-[#F9FAFB] font-sans antialiased">
       {/* Header */}
       <nav className="bg-white border-b border-gray-200 px-8 py-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-8">
-            <Image
-              src="/images/Logo.png"
-              alt="TT Showcase"
-              width={140}
-              height={35}
-              className="object-contain"
-            />
+            <Link href="/">
+              <Image
+                src="/images/Logo.png"
+                alt="TT Showcase"
+                width={140}
+                height={35}
+                className="object-contain"
+              />
+            </Link>
             <div className="hidden md:flex gap-6">
               <Link
                 href="/dashboard"
@@ -447,7 +517,9 @@ export default function PaymentsPage() {
                     Wallet Balance
                   </span>
                 </div>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(walletBalance)}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {formatCurrency(walletBalance)}
+                </p>
               </div>
               <div className="flex items-center gap-3">
                 <button
@@ -456,8 +528,18 @@ export default function PaymentsPage() {
                   className="text-gray-600 hover:text-gray-800 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Refresh wallet balance"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
                   </svg>
                   Refresh
                 </button>
@@ -495,49 +577,145 @@ export default function PaymentsPage() {
                 <tbody className="divide-y divide-gray-50">
                   {paymentSchedule.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-8 text-center text-gray-500">
+                      <td
+                        colSpan={5}
+                        className="py-8 text-center text-gray-500"
+                      >
                         No payment schedule available
                       </td>
                     </tr>
                   ) : (
-                    paymentSchedule.map((item) => (
-                      <tr key={item.id} className="text-[14px]">
-                        <td className="py-6 font-semibold text-gray-800">
-                          {item.description}
-                        </td>
-                        <td className="py-6 text-gray-500 font-medium">
-                          {formatDateForDisplay(item.dueDate)}
-                        </td>
-                        <td className="py-6 font-bold text-gray-800">
-                          {formatCurrency(item.amount)}
-                        </td>
-                        <td className="py-6">
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-normal ${
-                              item.status === 'PAID'
-                                ? 'bg-green-100 text-green-600'
-                                : 'bg-yellow-100 text-yellow-600'
-                            }`}
-                          >
-                            {item.status === 'PAID' ? 'Paid' : 'Pending'}
-                          </span>
-                        </td>
-                        <td className="py-6 text-right">
-                          {item.canPay && item.status === 'PENDING' ? (
-                            <button
-                              onClick={() => handlePayClick(item)}
-                              className="bg-[#6366F1] text-white px-5 py-2 rounded-lg text-xs font-semibold hover:bg-indigo-700 transition-colors"
-                            >
-                              Pay Now
-                            </button>
-                          ) : item.status === 'PAID' ? (
+                    <>
+                      {/* Show paid payments first */}
+                      {paidPayments.map((item) => (
+                        <tr key={item.id} className="text-[14px]">
+                          <td className="py-6 font-semibold text-gray-800">
+                            {item.description}
+                          </td>
+                          <td className="py-6 text-gray-500 font-medium">
+                            {formatDateForDisplay(item.dueDate)}
+                          </td>
+                          <td className="py-6 font-bold text-gray-800">
+                            {formatCurrency(item.amount)}
+                          </td>
+                          <td className="py-6">
+                            <span className="px-3 py-1 rounded-full text-xs font-normal bg-green-100 text-green-600">
+                              Paid
+                            </span>
+                          </td>
+                          <td className="py-6 text-right">
                             <span className="text-gray-400 text-xs font-medium">
                               No Pending Action
                             </span>
-                          ) : null}
-                        </td>
-                      </tr>
-                    ))
+                          </td>
+                        </tr>
+                      ))}
+                      {/* Then show pending installments */}
+                      {pendingInstallments.map((item) => (
+                        <tr key={item.id} className="text-[14px]">
+                          <td className="py-6 font-semibold text-gray-800">
+                            {item.description}
+                          </td>
+                          <td className="py-6 text-gray-500 font-medium">
+                            {formatDateForDisplay(item.dueDate)}
+                          </td>
+                          <td className="py-6 font-bold text-gray-800">
+                            <div>
+                              {formatCurrency(item.amount)}
+                              {item.minimumAmount &&
+                                item.amount > item.minimumAmount && (
+                                  <span className="text-xs text-gray-500 block font-normal mt-1">
+                                    (Min: {formatCurrency(item.minimumAmount)})
+                                  </span>
+                                )}
+                            </div>
+                          </td>
+                          <td className="py-6">
+                            <span className="px-3 py-1 rounded-full text-xs font-normal bg-yellow-100 text-yellow-600">
+                              Pending
+                            </span>
+                          </td>
+                          <td className="py-6 text-right">
+                            {item.canPay && item.status === "PENDING" ? (
+                              <div className="space-y-2">
+                                {showAmountInput === item.id ? (
+                                  <div className="flex gap-2 items-center">
+                                    <input
+                                      type="number"
+                                      min={item.minimumAmount || item.amount}
+                                      step="0.01"
+                                      placeholder={`Min: ${formatCurrency(
+                                        item.minimumAmount || item.amount
+                                      )}`}
+                                      value={customAmount || ""}
+                                      onChange={(e) =>
+                                        setCustomAmount(
+                                          parseFloat(e.target.value) || null
+                                        )
+                                      }
+                                      className="border border-gray-200 text-gray-600 rounded-lg px-3 py-2 w-32 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    />
+                                    <button
+                                      onClick={() => {
+                                        setShowAmountInput(null);
+                                        setCustomAmount(null);
+                                      }}
+                                      className="px-3 py-2 text-gray-600 text-xs hover:text-gray-800"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        const amountToPay =
+                                          customAmount || item.amount;
+                                        const minAmount =
+                                          item.minimumAmount || item.amount;
+
+                                        if (amountToPay < minAmount) {
+                                          alert(
+                                            `Amount must be at least ${formatCurrency(
+                                              minAmount
+                                            )}`
+                                          );
+                                          return;
+                                        }
+
+                                        // Create a modified installment object with custom amount
+                                        const modifiedItem = {
+                                          ...item,
+                                          amount: amountToPay,
+                                        };
+                                        handlePayClick(modifiedItem);
+                                        setShowAmountInput(null);
+                                        setCustomAmount(null);
+                                      }}
+                                      className="bg-[#6366F1] text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-indigo-700 transition-colors"
+                                    >
+                                      Pay
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      setShowAmountInput(item.id);
+                                      setCustomAmount(item.amount);
+                                    }}
+                                    className="bg-[#6366F1] text-white px-5 py-2 rounded-lg text-xs font-semibold hover:bg-indigo-700 transition-colors"
+                                  >
+                                    Pay Now
+                                  </button>
+                                )}
+                                {item.minimumAmount && (
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    You can pay more than the minimum
+                                  </p>
+                                )}
+                              </div>
+                            ) : null}
+                          </td>
+                        </tr>
+                      ))}
+                    </>
                   )}
                 </tbody>
               </table>
@@ -621,7 +799,11 @@ export default function PaymentsPage() {
 
       <PayInstallment
         show={showPayModal}
-        amount={selectedInstallment ? formatCurrency(selectedInstallment.amount) : "₦0"}
+        amount={
+          selectedInstallment
+            ? formatCurrency(selectedInstallment.amount)
+            : "₦0"
+        }
         installment={selectedInstallment}
         walletBalance={paymentsData?.walletBalance || 0}
         onClose={() => {
@@ -636,16 +818,16 @@ export default function PaymentsPage() {
 
       {/* Receipt for PDF Generation - Rendered off-screen but visible to html2canvas */}
       {selectedPaymentForReceipt && studentProfile && (
-        <div 
-          style={{ 
-            position: 'fixed', 
-            left: '-9999px', 
+        <div
+          style={{
+            position: "fixed",
+            left: "-9999px",
             top: 0,
-            width: '210mm', // A4 width
-            minHeight: 'auto', // Allow content to determine height
-            backgroundColor: '#ffffff',
+            width: "210mm", // A4 width
+            minHeight: "auto", // Allow content to determine height
+            backgroundColor: "#ffffff",
             zIndex: -1,
-            overflow: 'visible' // Ensure all content is visible
+            overflow: "visible", // Ensure all content is visible
           }}
         >
           <PaymentReceipt
@@ -654,11 +836,17 @@ export default function PaymentsPage() {
             course={selectedPaymentForReceipt.course?.name || "N/A"}
             batch={undefined}
             amountPaid={selectedPaymentForReceipt.amount}
-            paymentMethod={selectedPaymentForReceipt.paymentMethod || "Online Payment"}
+            paymentMethod={
+              selectedPaymentForReceipt.paymentMethod || "Online Payment"
+            }
             datePaid={formatDate(selectedPaymentForReceipt.date)}
             recordedBy="System"
             center={studentProfile.centerName || "N/A"}
-            paymentType={selectedPaymentForReceipt.status === "APPROVED" ? "Payment" : "Pending Payment"}
+            paymentType={
+              selectedPaymentForReceipt.status === "APPROVED"
+                ? "Payment"
+                : "Pending Payment"
+            }
             transactionId={selectedPaymentForReceipt.reference}
           />
         </div>

@@ -134,14 +134,107 @@ export default function PaymentConfiguration({
 
   const outstandingBalance = fullTuition - initialDeposit;
 
-  const handlePayment = async () => {
-    if (!userEmail) {
-      alert("User email is required for payment");
-      return;
+  // Helper function to fetch email directly from multiple sources
+  const fetchEmailDirectly = async (): Promise<string | null> => {
+    // 1. Try userInfo cookie (most reliable)
+    if (typeof window !== "undefined") {
+      try {
+        const cookies = document.cookie.split(";");
+        for (const cookie of cookies) {
+          const [name, value] = cookie.trim().split("=");
+          if (name === "userInfo" && value) {
+            try {
+              const userInfo = JSON.parse(decodeURIComponent(value));
+              const email = userInfo?.email;
+              if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+                console.log("✅ Found email in userInfo cookie:", email);
+                return email.trim().toLowerCase();
+              }
+            } catch (e) {
+              console.error("Error parsing userInfo cookie:", e);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error reading cookies:", error);
+      }
     }
+
+    // 2. Try sessionStorage
+    if (typeof window !== "undefined") {
+      try {
+        const lastLoginResponse = sessionStorage.getItem("lastLoginResponse");
+        if (lastLoginResponse) {
+          const loginData = JSON.parse(lastLoginResponse);
+          const email = loginData?.user?.email;
+          if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+            console.log("✅ Found email in sessionStorage:", email);
+            return email.trim().toLowerCase();
+          }
+        }
+      } catch (error) {
+        console.error("Error reading sessionStorage:", error);
+      }
+    }
+
+    // 3. Try API endpoint
+    try {
+      const response = await fetch("/api/auth/user-info", {
+        credentials: "include",
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const email = data.user?.email;
+        if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+          console.log("✅ Found email from API:", email);
+          return email.trim().toLowerCase();
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching from API:", error);
+    }
+
+    return null;
+  };
+
+  const handlePayment = async () => {
+    console.log("💳 Payment attempt - Email check:", {
+      userEmail,
+      type: typeof userEmail,
+      isEmpty: !userEmail || userEmail.trim() === '',
+    });
 
     if (!selectedCenter) {
       alert("Center selection is required for payment");
+      return;
+    }
+
+    // Get email - use prop first, then fetch directly if not available
+    let emailToUse: string | undefined = userEmail;
+    
+    if (!emailToUse || typeof emailToUse !== 'string' || emailToUse.trim() === '') {
+      console.log("⚠️ Email not available in prop, fetching directly...");
+      emailToUse = await fetchEmailDirectly() ?? undefined;
+      
+      if (!emailToUse) {
+        console.error("❌ No valid email found from any source");
+        alert("User email is required for payment. Please log out and log back in, or contact support.");
+        return;
+      }
+    }
+
+    // Validate and clean email
+    const cleanedEmail = emailToUse.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    
+    console.log("Payment email validation:", {
+      originalEmail: emailToUse,
+      cleanedEmail: cleanedEmail,
+      isValid: emailRegex.test(cleanedEmail)
+    });
+    
+    if (!emailRegex.test(cleanedEmail)) {
+      alert(`Please provide a valid email address. Current value: "${emailToUse}"`);
       return;
     }
 
@@ -160,7 +253,7 @@ export default function PaymentConfiguration({
       
       // Initialize Paystack payment
       const paymentInit = await initializePaystackPayment({
-        email: userEmail,
+        email: cleanedEmail,
         amount: initialDeposit, // Amount in Naira (will be converted to kobo in API)
         reference,
         callback_url: `${window.location.origin}/onboarding/payment/callback`,
@@ -278,8 +371,8 @@ export default function PaymentConfiguration({
               <Calendar size={20} className="text-indigo-600" />
               <span>Repayment Duration</span>
             </div>
-            <div className={`grid grid-cols-5 gap-3 ${isFullPayment ? 'opacity-50 pointer-events-none' : ''}`}>
-              {Array.from({ length: Math.min(5, maxInstallments) }, (_, i) => i + 1).map((months) => (
+            <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 ${isFullPayment ? 'opacity-50 pointer-events-none' : ''}`}>
+              {Array.from({ length: maxInstallments }, (_, i) => i + 1).map((months) => (
                 <button
                   key={months}
                   onClick={() => setDuration(months)}

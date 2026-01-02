@@ -45,7 +45,8 @@ async function getUserEmailFromToken(): Promise<string | null> {
     const jsonPayload = buffer.toString('utf-8');
     const decoded = JSON.parse(jsonPayload);
     
-    return decoded.email || decoded.userEmail || decoded.sub || null;
+    // Only use email fields, never fallback to sub (which is user ID)
+    return decoded.email || decoded.userEmail || null;
   } catch (error) {
     console.error('Error decoding JWT token:', error);
     return null;

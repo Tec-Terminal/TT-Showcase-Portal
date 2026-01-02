@@ -113,6 +113,16 @@ export async function POST(request: NextRequest) {
       emailVerified: emailVerified,
     };
 
+    // Store user data in a cookie for persistence (non-httpOnly so client can read it)
+    if (userData.fullName) {
+      cookieStore.set('userInfo', JSON.stringify(userData), {
+        httpOnly: false, // Allow client-side access
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+    }
+
     return NextResponse.json({ user: userData });
   } catch (error: any) {
     console.error('Login error:', error);

@@ -3,7 +3,10 @@ import { cookies } from 'next/headers';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, fullName, phone } = await request.json();
+    const { email, password, firstName, lastName, phone } = await request.json();
+
+    // Log the received data for debugging
+    console.log('Registration request received:', { email, firstName, lastName, phone: phone ? '***' : undefined });
 
     const apiBaseUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'https://your-api-domain.com';
 
@@ -15,12 +18,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const requestBody = { email, password, firstName, lastName, phone };
+    console.log('Sending to backend:', { ...requestBody, password: '***' });
+
     const response = await fetch(`${apiBaseUrl}/auth/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email, password, fullName, phone }),
+      body: JSON.stringify(requestBody),
     });
 
     // Check content type before parsing

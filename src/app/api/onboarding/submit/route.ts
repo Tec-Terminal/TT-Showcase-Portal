@@ -55,11 +55,6 @@ export async function POST(request: NextRequest) {
     
     // Prepare the payload for backend
     const payload = {
-      // User ID to link student to authenticated user
-      // This ensures the student is tied to the user account
-      userId: userId || undefined, // Include only if we have it
-      
-      // Profile information
       profile: {
         trainingLocation: body.profile.trainingLocation,
         centre: body.profile.centre,
@@ -98,7 +93,7 @@ export async function POST(request: NextRequest) {
     // Submit to backend API
     const apiBaseUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL;
     if (!apiBaseUrl) {
-      console.error("❌ API_BASE_URL is not configured");
+      console.error("API_BASE_URL is not configured");
       return NextResponse.json(
         { 
           error: 'API server not configured',
@@ -126,7 +121,7 @@ export async function POST(request: NextRequest) {
         const verifyData = await verifyResponse.json();
 
         if (!verifyResponse.ok || !verifyData.status || verifyData.data.status !== 'success') {
-          console.error("❌ Payment verification failed:", verifyData);
+          console.error("Payment verification failed:", verifyData);
           return NextResponse.json(
             { 
               error: 'Payment verification failed',
@@ -137,7 +132,7 @@ export async function POST(request: NextRequest) {
           );
         }
       } catch (verifyError: any) {
-        console.error("❌ Error verifying payment:", verifyError);
+        console.error("Error verifying payment:", verifyError);
         return NextResponse.json(
           { 
             error: 'Payment verification error',
@@ -148,7 +143,7 @@ export async function POST(request: NextRequest) {
         );
       }
     } else {
-      console.warn("⚠️ PAYSTACK_SECRET_KEY not configured, skipping payment verification");
+      console.warn("PAYSTACK_SECRET_KEY not configured, skipping payment verification");
     }
 
     // Step 2: Create a promise for this request to prevent duplicates
@@ -161,7 +156,7 @@ export async function POST(request: NextRequest) {
         },
         body: JSON.stringify(payload),
       }).catch((fetchError: any) => {
-      console.error("❌ Connection error:", {
+      console.error("Connection error:", {
         message: fetchError.message,
         code: fetchError.cause?.code,
         apiBaseUrl: apiBaseUrl,
@@ -183,7 +178,7 @@ export async function POST(request: NextRequest) {
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ message: 'Failed to submit onboarding data' }));
-        console.error("❌ Backend API error:", {
+        console.error("Backend API error:", {
           status: response.status,
           statusText: response.statusText,
           error: error,
@@ -215,7 +210,7 @@ export async function POST(request: NextRequest) {
       throw error;
     }
   } catch (error: any) {
-    console.error('❌ Onboarding submission error:', error);
+    console.error('Onboarding submission error:', error);
     const errorMessage = error.message || 'Failed to submit onboarding data';
     
     // Provide helpful error message

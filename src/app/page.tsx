@@ -1,20 +1,6 @@
-import { redirect } from 'next/navigation';
-import { isAuthenticated, checkStudentProfileStatus } from '@/lib/auth';
 import LandingPage from '@/components/landing/LandingPage';
 
 export default async function HomePage() {
-  const authenticated = await isAuthenticated();
-  
-  if (authenticated) {
-    // Check if user has a student profile
-    const profileStatus = await checkStudentProfileStatus();
-    if (profileStatus.hasStudentProfile) {
-      redirect('/dashboard');
-    } else {
-      redirect('/onboarding');
-    }
-  }
-  
-  // Show landing page for non-authenticated users
+  // Show landing page for everyone (no authentication required)
   return <LandingPage />;
 }

@@ -13,8 +13,9 @@ import {
   type RegisterFormData,
 } from "@/lib/validations/auth.schema";
 import { AppRoutes } from "@/constants/appRoutes";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
 
-export default function RegisterPage() {
+const RegistrationPage = () => {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -26,7 +27,8 @@ export default function RegisterPage() {
   } = useForm<RegisterFormData>({
     resolver: yupResolver(registerSchema) as any,
     defaultValues: {
-      fullName: "",
+      firstName: "",
+      lastName: "",
       email: "",
       phone: undefined,
       password: "",
@@ -37,7 +39,8 @@ export default function RegisterPage() {
   const registerMutation = useMutation({
     mutationFn: registerUser,
     onSuccess: (data, variables) => {
-      const userEmail = data?.email || (data as any)?.user?.email || variables.email;
+      const userEmail =
+        data?.email || (data as any)?.user?.email || variables.email;
       router.push(`/verify-email?email=${encodeURIComponent(userEmail)}`);
     },
     onError: (error: Error) => {
@@ -46,92 +49,137 @@ export default function RegisterPage() {
   });
 
   const onSubmit = async (data: RegisterFormData) => {
-    const formattedPhone = data.phone ? `+234${data.phone.replace(/^\+234/, "")}` : undefined;
-    
+    const formattedPhone = data.phone
+      ? `0${data.phone.replace(/^\0/, "")}`
+      : undefined;
     registerMutation.mutate({
       email: data.email,
       password: data.password,
-      fullName: data.fullName,
+      firstName: data.firstName,
+      lastName: data.lastName,
       phone: formattedPhone,
     });
   };
 
   return (
-    <div className="flex min-h-screen bg-[#F9FAFB] p-4 lg:p-8">
-      {/* Branding */}
-      <div className="hidden lg:flex lg:w-112.5 relative rounded-4xl overflow-hidden shrink-0">
-        <Image
-          src="/images/signup.png"
-          alt="Registration"
-          fill
-          className="object-contain"
-          priority
-        />
-      </div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4 md:p-8">
+      <div className="max-w-6xl w-full bg-white rounded-3xl shadow-xl overflow-hidden flex flex-col md:flex-row">
+        {/* Branding */}
+        <div className="relative w-full md:w-1/2 min-h-125 flex flex-col justify-between p-8 md:p-12 text-white">
+          <div
+            className="absolute inset-0 z-0 bg-cover bg-center"
+            style={{ backgroundImage: "url('/images/register-image.jpeg')" }}
+          >
+            <div className="absolute inset-0 bg-indigo-900/40 mix-blend-multiply"></div>
+          </div>
 
-      {/* Right Registration Form Section */}
-      <div className="flex-1 flex items-center justify-center">
-        <div className="w-full max-w-160 px-3">
-          <div className="bg-white w-full h-140 rounded-3xl border border-gray-100 shadow-sm p-8 lg:p-12 max-h-[90vh] overflow-y-auto custom-scroll">
+          {/* Logo */}
+          <div className="relative z-10">
+            <Image
+              src="/images/Auth-Logo.png"
+              alt="TT Showcase Logo"
+              width={140}
+              height={40}
+              className="h-10 w-auto"
+              priority
+            />
+          </div>
+
+          {/* Content */}
+          <div className="relative z-10 mb-12">
+            <h1 className="text-5xl md:text-6xl font-bold leading-tight mb-4">
+              Start Your <br /> Journey Today
+            </h1>
+            <p className="text-lg text-gray-100 max-w-md leading-relaxed">
+              Join the TT Showcase Student Portal to access world-class
+              resources, mentorship, and opportunities designed to elevate your
+              career.
+            </p>
+          </div>
+
+          {/* Footer Text */}
+          <p className="relative z-10 text-sm text-gray-200">
+            2026 TT Showcase Student Portal. All rights reserved.
+          </p>
+        </div>
+
+        {/* Form */}
+        <div className="w-full md:w-1/2 p-8 md:p-16 bg-white flex flex-col justify-center">
+          <div className="max-w-md mx-auto w-full">
             <div className="text-center mb-8">
-              <h2 className="text-[28px] font-bold text-gray-900 mb-2">
+              <h2 className="text-2xl font-bold text-gray-900">
                 Student Registration
               </h2>
-              <p className="text-gray-500 font-medium">
+              <p className="text-gray-500 text-sm mt-1">
                 Enter your details to create your account
               </p>
             </div>
 
-            <button
-              type="button"
-              disabled={true}
-              className="w-full flex items-center justify-center gap-3 px-4 py-1.5 border border-gray-200 rounded-xl font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-all mb-6"
-            >
-              <Image
+            {/* Google Sign Up */}
+            <button className="w-full hidden items-center justify-center gap-2 border border-gray-300 rounded-lg py-2.5 px-4 text-gray-700 font-medium hover:bg-gray-50 transition-colors mb-6">
+              <img
                 src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
                 alt="Google"
-                width={18}
-                height={18}
+                className="w-5 h-5"
               />
               Sign up with Google
             </button>
 
-            <div className="relative mb-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-100"></div>
-              </div>
-              <div className="relative flex justify-center text-[10px] uppercase tracking-widest">
-                <span className="px-4 bg-white text-gray-400 font-bold">
-                  Or Continue with
-                </span>
-              </div>
+            <div className="relative hidden items-center mb-6">
+              <div className="grow border-t border-gray-200"></div>
+              <span className="shrink mx-4 text-gray-400 text-sm">
+                Or Continue with
+              </span>
+              <div className="grow border-t border-gray-200"></div>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div>
-                <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">
-                  Full Name*
-                </label>
-                <input
-                  {...register("fullName")}
-                  className="w-full px-4 py-1.5 text-gray-500 placeholder:text-gray-300 bg-[#F9FAFB] border border-gray-200 rounded-xl focus:border-indigo-500 outline-none transition-all"
-                  placeholder="Full Name"
-                />
-                {errors.fullName && (
-                  <p className="mt-1 text-xs text-red-500">
-                    {errors.fullName.message}
-                  </p>
-                )}
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-10">
+              {/* First Name and Last Name */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-semibold text-gray-700">
+                    First Name*
+                  </label>
+                  <input
+                    {...register("firstName")}
+                    type="text"
+                    placeholder="First Name"
+                    className="w-full px-4 py-2 text-gray-600 placeholder:text-gray-400 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                  {errors.firstName && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.firstName.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-semibold text-gray-700">
+                    Last Name*
+                  </label>
+                  <input
+                    {...register("lastName")}
+                    type="text"
+                    placeholder="Last Name"
+                    className="w-full px-4 py-2 text-gray-600 placeholder:text-gray-400 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                  {errors.lastName && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.lastName.message}
+                    </p>
+                  )}
+                </div>
               </div>
 
-              <div>
-                <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">
-                  Email Address*
+              {/* Email */}
+              <div className="space-y-1">
+                <label className="text-sm font-semibold text-gray-700">
+                  Email*
                 </label>
                 <input
                   {...register("email")}
-                  className="w-full px-4 py-1.5 text-gray-500 placeholder:text-gray-300 bg-[#F9FAFB] border border-gray-200 rounded-xl focus:border-indigo-500 outline-none transition-all"
+                  type="email"
                   placeholder="Email"
+                  className="w-full px-4 py-2 text-gray-600 placeholder:text-gray-400 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                 />
                 {errors.email && (
                   <p className="mt-1 text-xs text-red-500">
@@ -140,205 +188,131 @@ export default function RegisterPage() {
                 )}
               </div>
 
-              <div>
-                <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">
+              <div className="space-y-1">
+                <label className="text-sm font-semibold text-gray-700">
                   Phone Number*
                 </label>
-                <div className="flex gap-2">
-                  <div className="flex items-center gap-2 px-3 bg-[#F9FAFB] border border-gray-200 rounded-xl text-sm text-gray-500">
-                    <span>🇳🇬</span> <span>+234</span>
+                <div className="flex border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
+                  <div className="flex items-center gap-1 bg-gray-50 px-3 border-r border-gray-300">
+                    <span className="text-sm text-gray-600">🇳🇬</span>
+                    <span className="text-gray-600 text-sm">+234</span>
                   </div>
                   <input
                     {...register("phone")}
-                    className="flex-1 px-4 py-1.5 text-gray-500 placeholder:text-gray-300 bg-[#F9FAFB] border border-gray-200 rounded-xl focus:border-indigo-500 outline-none transition-all"
-                    placeholder="80..."
+                    type="tel"
+                    placeholder="800 123 4567"
+                    className="w-full px-4 py-2 text-gray-600 placeholder:text-gray-400 outline-none"
                   />
                 </div>
-                {errors.phone && (
-                  <p className="mt-1 text-xs text-red-500">
-                    {errors.phone.message}
-                  </p>
-                )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">
-                    Password*
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      {...register("password")}
-                      className="w-full px-4 py-1.5 pr-10 text-gray-500 placeholder:text-gray-300 bg-[#F9FAFB] border border-gray-200 rounded-xl focus:border-indigo-500 outline-none transition-all"
-                      placeholder="••••••••"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                    >
-                      {showPassword ? (
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.29 3.29m13.42 13.42l-3.29-3.29M3 3l18 18"
-                          />
-                        </svg>
-                      ) : (
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                          />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-                  {errors.password && (
-                    <p className="mt-1 text-xs text-red-500">
-                      {errors.password.message}
-                    </p>
-                  )}
+              <div className="space-y-1">
+                <label className="text-sm font-semibold text-gray-700">
+                  Password*
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    {...register("password")}
+                    placeholder="Create a strong password"
+                    className="w-full px-4 py-2 text-gray-600 placeholder:text-gray-400 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? (
+                      <EyeOffIcon className="w-4 h-4" />
+                    ) : (
+                      <EyeIcon className="w-4 h-4" />
+                    )}
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">
-                    Confirm Password*
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showConfirmPassword ? "text" : "password"}
-                      {...register("confirmPassword")}
-                      className="w-full px-4 py-1.5 pr-10 text-gray-500 placeholder:text-gray-300 bg-[#F9FAFB] border border-gray-200 rounded-xl focus:border-indigo-500 outline-none transition-all"
-                      placeholder="••••••••"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                      aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-                    >
-                      {showConfirmPassword ? (
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.29 3.29m13.42 13.42l-3.29-3.29M3 3l18 18"
-                          />
-                        </svg>
-                      ) : (
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                          />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-                  {errors.confirmPassword && (
-                    <p className="mt-1 text-xs text-red-500">
-                      {errors.confirmPassword.message}
-                    </p>
-                  )}
+                {errors.password && (
+                  <p className="mt-1 text-[10px] text-red-500">
+                    {errors.password.message}
+                  </p>
+                )}
+                <p className="text-xs text-gray-400">
+                  Must contain at least 8 characters
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-semibold text-gray-700">
+                  Confirm Password*
+                </label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    {...register("confirmPassword")}
+                    placeholder="Confirm a strong password"
+                    className="w-full px-4 py-2 text-gray-600 placeholder:text-gray-400 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOffIcon className="w-4 h-4" />
+                    ) : (
+                      <EyeIcon className="w-4 h-4" />
+                    )}
+                  </button>
                 </div>
+                {errors.confirmPassword && (
+                  <p className="mt-1 text-[10px] text-red-500">
+                    {errors.confirmPassword.message}
+                  </p>
+                )}
               </div>
 
               <div className="flex items-start gap-2 py-2">
                 <input
                   type="checkbox"
-                  className="mt-1 w-4 h-4 text-indigo-600 rounded border-gray-300"
-                  required
+                  id="terms"
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                 />
-                <span className="text-xs text-gray-500 leading-normal">
+                <label htmlFor="terms" className="text-sm text-gray-600">
                   I accept the{" "}
-                  <Link
-                    href="#"
-                    className="text-indigo-600 font-semibold hover:underline"
-                  >
+                  <a href="#" className="text-indigo-600 underline">
                     Terms of Service
-                  </Link>{" "}
+                  </a>{" "}
                   and{" "}
-                  <Link
-                    href="#"
-                    className="text-indigo-600 font-semibold hover:underline"
-                  >
+                  <a href="#" className="text-indigo-600 underline">
                     Privacy Policy
-                  </Link>
+                  </a>
                   .
-                </span>
+                </label>
               </div>
 
               <button
                 type="submit"
                 disabled={isSubmitting || registerMutation.isPending}
-                className="w-full bg-[#7C3AED] text-white py-3 rounded-xl font-bold hover:bg-[#6D28D9] shadow-lg shadow-indigo-100 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                className="w-full bg-[#6344E7] text-white py-3 rounded-xl font-semibold hover:bg-[#5235c9] transition-all shadow-lg shadow-indigo-200"
               >
                 {isSubmitting || registerMutation.isPending
                   ? "Creating Account..."
                   : "Sign up for free"}
               </button>
-              {registerMutation.isError && (
-                <p className="mt-2 text-xs text-red-500 text-center">
-                  {registerMutation.error?.message || "Registration failed. Please try again."}
-                </p>
-              )}
-            </form>
 
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-500 font-medium">
+              <p className="text-center text-sm text-gray-600 mt-4">
                 Got an account?{" "}
                 <Link
                   href={AppRoutes.LOGIN}
-                  className="text-[#7C3AED] font-bold hover:underline ml-1"
+                  className="text-[#6344E7] font-bold"
                 >
                   Login
                 </Link>
               </p>
-            </div>
+            </form>
           </div>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default RegistrationPage;

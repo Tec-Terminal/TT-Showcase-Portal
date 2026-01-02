@@ -94,6 +94,8 @@ export interface PaymentScheduleItem {
   installmentNumber: number;
   totalInstallments: number;
   canPay: boolean;
+  isPayment?: boolean; // true if this is an actual payment record, false if virtual installment
+  minimumAmount?: number; // Minimum expected amount (for virtual installments)
 }
 
 export interface PaymentBreakdownItem {

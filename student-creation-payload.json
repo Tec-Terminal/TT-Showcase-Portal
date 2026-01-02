@@ -1,0 +1,48 @@
+{
+  "userId": "user_550e8400-e29b-41d4-a716-446655440000",
+  "profile": {
+    "trainingLocation": "clx550e8400-e29b-41d4-a716-446655440001",
+    "centre": "clx550e8400-e29b-41d4-a716-446655440002",
+    "studentAddress": "123 Victoria Island, Lagos State, Nigeria",
+    "guardianName": "Mary Johnson",
+    "guardianPhone": "08012345678",
+    "guardianEmail": "mary.johnson@example.com",
+    "guardianAddress": "456 Ikoyi Road, Lagos State, Nigeria",
+    "hasGuardian": true
+  },
+  "centerId": "clx550e8400-e29b-41d4-a716-446655440002",
+  "courseId": "clx550e8400-e29b-41d4-a716-446655440003",
+  "payment": {
+    "amount": 500000,
+    "courseFee": 1500000,
+    "numberOfInstallments": 3,
+    "paymentPlan": "installment",
+    "paymentType": "monthly",
+    "paymentMethod": "paystack",
+    "paymentReference": "TT-1735467890-xyz789abc",
+    "installments": [
+      {
+        "title": "Enrolment Deposit",
+        "date": "Jan 15, 2025",
+        "amount": 500000,
+        "status": "DUE TODAY"
+      },
+      {
+        "title": "Installment 1 of 3",
+        "date": "Feb 15, 2025",
+        "amount": 333333
+      },
+      {
+        "title": "Installment 2 of 3",
+        "date": "Mar 15, 2025",
+        "amount": 333333
+      },
+      {
+        "title": "Installment 3 of 3",
+        "date": "Apr 15, 2025",
+        "amount": 333334
+      }
+    ]
+  }
+}
+
