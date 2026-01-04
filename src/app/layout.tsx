@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ReactQueryProvider from "@/providers/ReactQueryProvider";
 import { Raleway } from "next/font/google";
+import { SupportChatbotWrapper } from "@/components/support/SupportChatbotWrapper";
 
 const raleway = Raleway({
   subsets: ["latin"],
@@ -37,7 +38,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${raleway.variable} antialiased`}>
-        <ReactQueryProvider>{children}</ReactQueryProvider>
+        <ReactQueryProvider>
+          {children}
+          <SupportChatbotWrapper />
+        </ReactQueryProvider>
       </body>
     </html>
   );

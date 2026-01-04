@@ -11,6 +11,7 @@ import {
 } from "@/lib/network-server";
 import DashboardNotifications from "@/components/notifications/DashboardNotifications";
 import LogoutButton from "@/components/auth/LogoutButton";
+import { formatDate } from "@/lib/utils/errorHandler";
 
 export default async function DashboardPage() {
   await requireAuthAndProfile();
@@ -20,6 +21,7 @@ export default async function DashboardPage() {
   try {
     const response = await getStudentDashboardData();
     dashboardData = response.data || response;
+    console.log("Dashboard Data:", dashboardData);
   } catch (error: any) {
     console.error("Error fetching dashboard data:", error);
     dashboardData = {
@@ -50,7 +52,7 @@ export default async function DashboardPage() {
     console.error("Error fetching profile:", error);
   }
 
-  // Extract data with fallbacks 
+  // Extract data with fallbacks
   const student = profileData?.data ||
     profileData ||
     dashboardData.profile ||
@@ -118,15 +120,19 @@ export default async function DashboardPage() {
   const allPayments = dashboardData.upcomingPayments || [];
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
-  
+
   const upcomingPayments = allPayments
     .filter((payment: any) => {
       const status = payment.status?.toUpperCase();
       // Filter out paid payments
-      if (status === 'APPROVED' || status === 'PAID' || status === 'COMPLETED') {
+      if (
+        status === "APPROVED" ||
+        status === "PAID" ||
+        status === "COMPLETED"
+      ) {
         return false;
       }
-      
+
       // Only include payments with valid due dates in the future or today
       if (payment.dueDate) {
         const dueDate = new Date(payment.dueDate);
@@ -134,7 +140,7 @@ export default async function DashboardPage() {
         // Include if due date is today or in the future
         return dueDate >= today;
       }
-      
+
       return true;
     })
     .sort((a: any, b: any) => {
@@ -144,7 +150,7 @@ export default async function DashboardPage() {
       }
       return 0;
     });
-  
+
   // Get the next payment (first unpaid payment)
   const nextPayment = upcomingPayments.length > 0 ? upcomingPayments[0] : null;
 
@@ -155,7 +161,7 @@ export default async function DashboardPage() {
     }
 
     const scheduleStrings = schedules.map((schedule: any) => {
-      const day = schedule.day?.substring(0, 3) || schedule.day; 
+      const day = schedule.day?.substring(0, 3) || schedule.day;
       return `${day} (${schedule.startTime} - ${schedule.endTime})`;
     });
 
@@ -265,7 +271,8 @@ export default async function DashboardPage() {
                   </h2>
                   <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
                     <Clock size={15} />
-                    {dashboardData.currentCourse.duration} months
+                    {batch?.duration ??
+                      dashboardData.currentCourse.duration} months
                   </p>
                 </div>
                 <div className="p-4 rounded-lg border border-gray-200 bg-gray-50/30">
@@ -290,6 +297,17 @@ export default async function DashboardPage() {
                 <h2 className="text-md font-bold text-gray-800">
                   {scheduleString}
                 </h2>
+                <p className="text-xs text-gray-500 mt-2">
+                  {batch?.status === "ACTIVE"
+                    ? "Active Batch"
+                    : batch?.status || "N/A"}
+                </p>
+                {batch?.startDate && batch?.endDate && (
+                  <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                    <Calendar size={12} />
+                    {formatDate(batch.startDate)} - {formatDate(batch.endDate)}
+                  </p>
+                )}
               </div>
 
               <div>
