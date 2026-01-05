@@ -112,7 +112,10 @@ export async function GET() {
     }
 
     console.log('✅ Final user info:', userInfo);
-    return NextResponse.json({ user: userInfo });
+    return NextResponse.json({ 
+      user: userInfo,
+      decodedToken: decoded // Include decoded token for client-side logging
+    });
   } catch (error) {
     console.error('❌ Error getting user info:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

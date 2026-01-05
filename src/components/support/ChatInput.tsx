@@ -30,7 +30,7 @@ export const ChatInput = ({
   };
 
   return (
-    <div className="border-t border-gray-200 p-4 bg-white">
+    <div className="border-t border-gray-200 p-4 bg-white" style={{ backgroundColor: '#ffffff' }}>
       <div className="flex gap-2 items-end">
         <textarea
           value={message}
@@ -40,6 +40,7 @@ export const ChatInput = ({
           disabled={disabled}
           rows={2}
           className="flex-1 resize-none border border-gray-300 rounded-lg px-4 py-2 bg-white text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ backgroundColor: '#ffffff', color: '#111827' }}
         />
         <button
           onClick={handleSend}

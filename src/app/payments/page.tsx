@@ -49,8 +49,6 @@ export default function PaymentsPage() {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [selectedPaymentForReceipt, setSelectedPaymentForReceipt] =
     useState<PaymentBreakdownItem | null>(null);
-  const [customAmount, setCustomAmount] = useState<number | null>(null);
-  const [showAmountInput, setShowAmountInput] = useState<string | null>(null);
 
   // Function to fetch payments data
   const fetchPaymentsData = useCallback(async () => {
@@ -638,73 +636,12 @@ export default function PaymentsPage() {
                           <td className="py-6 text-right">
                             {item.canPay && item.status === "PENDING" ? (
                               <div className="space-y-2">
-                                {showAmountInput === item.id ? (
-                                  <div className="flex gap-2 items-center">
-                                    <input
-                                      type="number"
-                                      min={item.minimumAmount || item.amount}
-                                      step="0.01"
-                                      placeholder={`Min: ${formatCurrency(
-                                        item.minimumAmount || item.amount
-                                      )}`}
-                                      value={customAmount || ""}
-                                      onChange={(e) =>
-                                        setCustomAmount(
-                                          parseFloat(e.target.value) || null
-                                        )
-                                      }
-                                      className="border border-gray-200 text-gray-600 rounded-lg px-3 py-2 w-32 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                    />
-                                    <button
-                                      onClick={() => {
-                                        setShowAmountInput(null);
-                                        setCustomAmount(null);
-                                      }}
-                                      className="px-3 py-2 text-gray-600 text-xs hover:text-gray-800"
-                                    >
-                                      Cancel
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        const amountToPay =
-                                          customAmount || item.amount;
-                                        const minAmount =
-                                          item.minimumAmount || item.amount;
-
-                                        if (amountToPay < minAmount) {
-                                          alert(
-                                            `Amount must be at least ${formatCurrency(
-                                              minAmount
-                                            )}`
-                                          );
-                                          return;
-                                        }
-
-                                        // Create a modified installment object with custom amount
-                                        const modifiedItem = {
-                                          ...item,
-                                          amount: amountToPay,
-                                        };
-                                        handlePayClick(modifiedItem);
-                                        setShowAmountInput(null);
-                                        setCustomAmount(null);
-                                      }}
-                                      className="bg-[#6366F1] text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-indigo-700 transition-colors"
-                                    >
-                                      Pay
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <button
-                                    onClick={() => {
-                                      setShowAmountInput(item.id);
-                                      setCustomAmount(item.amount);
-                                    }}
-                                    className="bg-[#6366F1] text-white px-5 py-2 rounded-lg text-xs font-semibold hover:bg-indigo-700 transition-colors"
-                                  >
-                                    Pay Now
-                                  </button>
-                                )}
+                                <button
+                                  onClick={() => handlePayClick(item)}
+                                  className="bg-[#6366F1] text-white px-5 py-2 rounded-lg text-xs font-semibold hover:bg-indigo-700 transition-colors"
+                                >
+                                  Pay Now
+                                </button>
                                 {item.minimumAmount && (
                                   <p className="text-xs text-gray-500 mt-1">
                                     You can pay more than the minimum

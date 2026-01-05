@@ -84,11 +84,13 @@ export default function PayInstallment({
     const isVirtualInstallment = installment.id.startsWith('installment-');
     // Use editable amount if available, otherwise fall back to prop amount
     const amountNum = parseFloat(editableAmount) || parseFloat(amount.replace(/[₦,]/g, "")) || 0;
-    const minimumAmount = installment.minimumAmount || installment.amount || amountNum;
+    // Round to integer as backend expects integer amounts
+    const roundedAmount = Math.round(amountNum);
+    const minimumAmount = installment.minimumAmount || installment.amount || roundedAmount;
 
     // Validate amount
-    if (amountNum < minimumAmount) {
-      setError(`Amount must be at least ${amount.replace("₦", "").replace(/,/g, "")}`);
+    if (roundedAmount < minimumAmount) {
+      setError(`Amount must be at least ₦${minimumAmount.toLocaleString()}`);
       return;
     }
 
@@ -105,15 +107,15 @@ export default function PayInstallment({
         // For virtual installments, use installmentId
         requestData.installmentId = installment.id.trim();
         // Use custom amount if provided and different from default
-        if (amountNum > minimumAmount) {
-          requestData.amount = amountNum;
+        if (roundedAmount > minimumAmount) {
+          requestData.amount = roundedAmount;
         }
       } else {
         // For actual payment records, use paymentId
         requestData.paymentId = installment.id.trim();
         // Allow custom amount if provided and different from default
-        if (amountNum > installment.amount) {
-          requestData.amount = amountNum;
+        if (roundedAmount > installment.amount) {
+          requestData.amount = roundedAmount;
         }
       }
       
