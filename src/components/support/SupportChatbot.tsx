@@ -229,7 +229,7 @@ export const SupportChatbot = ({ studentId, userName, userEmail }: SupportChatbo
 
   return (
     <>
-      {/* Chatbot Button (when closed) */}
+      {/* Chatbot Button when closed */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
@@ -245,11 +245,11 @@ export const SupportChatbot = ({ studentId, userName, userEmail }: SupportChatbo
         </button>
       )}
 
-      {/* Chatbot Window (when open) */}
+      {/* Chatbot Window when open */}
       {isOpen && (
         <div
           className={`fixed bottom-6 right-6 w-96 bg-white rounded-lg shadow-2xl border border-gray-200 z-50 flex flex-col ${
-            isMinimized ? 'h-16' : 'h-[600px]'
+            isMinimized ? 'h-16' : 'h-150'
           } transition-all duration-300`}
         >
           {/* Header */}
@@ -345,7 +345,7 @@ export const SupportChatbot = ({ studentId, userName, userEmail }: SupportChatbo
                 placeholder={
                   currentTicketId
                     ? "Type your message..."
-                    : "Type your message to create a support ticket..."
+                    : "Type your message..."
                 }
               />
             </>

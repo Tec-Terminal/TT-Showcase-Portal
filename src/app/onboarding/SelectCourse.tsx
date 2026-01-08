@@ -29,6 +29,7 @@ export default function SelectCourse({
   const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
 
   // Load courses on mount
   useEffect(() => {
@@ -128,6 +129,19 @@ export default function SelectCourse({
     return course.paymentInfo.byCenter.reduce((min, current) => 
       current.baseFee < min.baseFee ? current : min
     );
+  };
+
+  // Toggle description expansion
+  const toggleDescription = (courseId: string) => {
+    setExpandedDescriptions((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(courseId)) {
+        newSet.delete(courseId);
+      } else {
+        newSet.add(courseId);
+      }
+      return newSet;
+    });
   };
 
   return (
@@ -232,9 +246,27 @@ export default function SelectCourse({
                 </div>
 
                 {/* Description */}
-                {/* <p className="text-sm text-gray-500 leading-relaxed mb-10">
-                  {course.description}
-                </p> */}
+                {course.description && (
+                  <div className="mb-6">
+                    <p
+                      className={`text-sm text-gray-500 leading-relaxed ${
+                        expandedDescriptions.has(course.id)
+                          ? ""
+                          : "line-clamp-2"
+                      }`}
+                    >
+                      {course.description}
+                    </p>
+                    <button
+                      onClick={() => toggleDescription(course.id)}
+                      className="text-[#6344F5] text-xs font-medium hover:underline mt-2"
+                    >
+                      {expandedDescriptions.has(course.id)
+                        ? "Show less"
+                        : "Read more"}
+                    </button>
+                  </div>
+                )}
 
                 {/* Pricing */}
                 <div className="mt-auto pt-8 border-t border-gray-200 flex items-center">

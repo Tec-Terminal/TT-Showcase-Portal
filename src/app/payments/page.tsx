@@ -47,6 +47,7 @@ export default function PaymentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isRefreshingWallet, setIsRefreshingWallet] = useState(false);
   const [selectedPaymentForReceipt, setSelectedPaymentForReceipt] =
     useState<PaymentBreakdownItem | null>(null);
 
@@ -165,6 +166,44 @@ export default function PaymentsPage() {
     }
   }, []);
 
+  // Function to refresh only wallet balance
+  const refreshWalletBalance = useCallback(async () => {
+    try {
+      setIsRefreshingWallet(true);
+      // Fetch payments overview from the backend
+      const payments = await getPaymentsOverviewClient();
+
+      // Validate response structure
+      if (!payments) {
+        throw new Error("Invalid response from server");
+      }
+
+      // Only update the wallet balance, keep other data unchanged
+      setPaymentsData((prevData) => {
+        if (!prevData) {
+          return {
+            walletBalance: payments.walletBalance ?? 0,
+            paymentSchedule: Array.isArray(payments.paymentSchedule)
+              ? payments.paymentSchedule
+              : [],
+            paymentBreakdown: Array.isArray(payments.paymentBreakdown)
+              ? payments.paymentBreakdown
+              : [],
+          };
+        }
+        return {
+          ...prevData,
+          walletBalance: payments.walletBalance ?? 0,
+        };
+      });
+    } catch (err: any) {
+      console.error("Error refreshing wallet balance:", err);
+      // Don't show error to user for wallet refresh, just log it
+    } finally {
+      setIsRefreshingWallet(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!isAuthLoading) {
       fetchPaymentsData();
@@ -191,14 +230,28 @@ export default function PaymentsPage() {
               paymentReference.startsWith("INST_") ||
               pendingInstallmentRef !== null;
 
+            // Get guardian email from student profile if available
+            let guardianEmail: string | undefined;
+            try {
+              const profileResponse = await getProfileClient();
+              const profileData = profileResponse.data || profileResponse;
+              // Check if guardian email exists in profile
+              if (profileData?.guardians && Array.isArray(profileData.guardians) && profileData.guardians.length > 0) {
+                guardianEmail = profileData.guardians[0]?.email;
+              }
+            } catch (profileError) {
+              // If profile fetch fails, continue without guardian email
+              console.warn("Could not fetch profile for guardian email:", profileError);
+            }
+
             if (isInstallmentPayment) {
-              await verifyInstallmentPaymentClient(paymentReference);
+              await verifyInstallmentPaymentClient(paymentReference, guardianEmail);
 
               // Clear the stored reference after successful verification
               sessionStorage.removeItem("pendingInstallmentPayment");
             } else {
               // Verify wallet funding
-              await verifyWalletFundingClient(paymentReference);
+              await verifyWalletFundingClient(paymentReference, guardianEmail);
             }
 
             // Wait a moment for backend to process
@@ -521,13 +574,13 @@ export default function PaymentsPage() {
               </div>
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => fetchPaymentsData()}
-                  disabled={loading}
+                  onClick={() => refreshWalletBalance()}
+                  disabled={isRefreshingWallet}
                   className="text-gray-600 hover:text-gray-800 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Refresh wallet balance"
                 >
                   <svg
-                    className="w-4 h-4"
+                    className={`w-4 h-4 ${isRefreshingWallet ? 'animate-spin' : ''}`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -539,7 +592,7 @@ export default function PaymentsPage() {
                       d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                     />
                   </svg>
-                  Refresh
+                  {isRefreshingWallet ? "Refreshing..." : "Refresh"}
                 </button>
                 <button
                   onClick={() => setShowFundModal(true)}

@@ -19,6 +19,7 @@ const RegistrationPage = () => {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const {
     register,
@@ -273,6 +274,8 @@ const RegistrationPage = () => {
                 <input
                   type="checkbox"
                   id="terms"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
                   className="mt-1 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                 />
                 <label htmlFor="terms" className="text-sm text-gray-600">
@@ -290,8 +293,8 @@ const RegistrationPage = () => {
 
               <button
                 type="submit"
-                disabled={isSubmitting || registerMutation.isPending}
-                className="w-full bg-[#6344E7] text-white py-3 rounded-xl font-semibold hover:bg-[#5235c9] transition-all shadow-lg shadow-indigo-200"
+                disabled={isSubmitting || registerMutation.isPending || !termsAccepted}
+                className="w-full bg-[#6344E7] text-white py-3 rounded-xl font-semibold hover:bg-[#5235c9] transition-all shadow-lg shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#6344E7]"
               >
                 {isSubmitting || registerMutation.isPending
                   ? "Creating Account..."

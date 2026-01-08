@@ -4,9 +4,13 @@ import { Calendar, Lock, Sliders } from "lucide-react";
 import BreakdownItem from "./BreakdownItem";
 import CustomPriceRange from "./CustomPriceRange";
 import { GoShieldCheck } from "react-icons/go";
-import { Course, Center, onboardingService } from "@/lib/services/onboarding.service";
+import {
+  Course,
+  Center,
+  onboardingService,
+} from "@/lib/services/onboarding.service";
 import { formatNairaWithSymbolDirect } from "@/lib/utils/currency";
-import { initializePaystackPayment } from "@/lib/services/paystack.service";
+import { initializeOnboardingPaymentClient } from "@/lib/network";
 
 interface PaymentPlan {
   initialDeposit: number;
@@ -39,37 +43,81 @@ export default function PaymentConfiguration({
   const [processing, setProcessing] = useState(false);
   // Get payment info for the selected center
   const getPaymentInfo = () => {
-    if (!course?.paymentInfo?.byCenter || course.paymentInfo.byCenter.length === 0) {
+    if (
+      !course?.paymentInfo?.byCenter ||
+      course.paymentInfo.byCenter.length === 0
+    ) {
       return null;
     }
-    
+
     if (selectedCenter) {
       const centerInfo = course.paymentInfo.byCenter.find(
         (info) => info.centerId === selectedCenter.id
       );
       if (centerInfo) return centerInfo;
     }
-    
+
     return course.paymentInfo.byCenter[0];
   };
 
   const paymentInfo = getPaymentInfo();
-  
-  // Use payment info from API or fallback values
-  const fullTuition = paymentInfo?.lumpSumFee || course?.paymentInfo?.maxFee || 800000;
-  const minDeposit = paymentInfo?.baseFee || course?.paymentInfo?.minFee || 300000;
-  const maxDeposit = fullTuition;
-  const maxInstallments = paymentInfo?.maxInstallments || course?.paymentInfo?.maxInstallments || 5;
 
-  const [initialDeposit, setInitialDeposit] = useState(
-    savedPaymentPlan?.initialDeposit || minDeposit
-  );
-  const [duration, setDuration] = useState(
-    savedPaymentPlan?.duration || Math.min(2, maxInstallments)
-  );
+  console.log("Payment info:", paymentInfo);
+
+  // Use payment info from API or fallback values
+  const fullTuition = paymentInfo?.lumpSumFee || course?.paymentInfo?.maxFee || 0;
+  const minDeposit = paymentInfo?.baseFee || course?.paymentInfo?.minFee || 0;
+  const maxDeposit = fullTuition;
+  const maxInstallments =
+    paymentInfo?.maxInstallments || course?.paymentInfo?.maxInstallments || 5;
+
+  // Use baseFee (minDeposit) as the minimum - only calculate a lower minimum if minDeposit equals or exceeds fullTuition
+  // This handles edge cases where the API might return minDeposit >= fullTuition
+  const actualMinDeposit =
+    minDeposit >= fullTuition
+      ? Math.min(Math.floor(fullTuition * 0.1), 100000)
+      : minDeposit;
+
+  // Calculate initial deposit - use minDeposit (baseFee) as the default
+  const getInitialDeposit = () => {
+    if (savedPaymentPlan?.initialDeposit) {
+      return savedPaymentPlan.initialDeposit;
+    }
+    // Default to minDeposit (baseFee) - this is the minimum allowed payment
+    return minDeposit;
+  };
+
+  const [initialDeposit, setInitialDeposit] = useState(getInitialDeposit);
+  // Calculate initial duration - 0 if full payment, otherwise default to 2 months
+  const getInitialDuration = () => {
+    if (savedPaymentPlan?.duration !== undefined) {
+      return savedPaymentPlan.duration;
+    }
+    const initialDep = getInitialDeposit();
+    // If initial deposit is full tuition, no installments needed
+    if (initialDep >= fullTuition) {
+      return 0;
+    }
+    // Otherwise default to 2 months (or max available)
+    return Math.min(2, maxInstallments);
+  };
+
+  const [duration, setDuration] = useState(getInitialDuration);
+  const [inputValue, setInputValue] = useState(() => {
+    const value = getInitialDeposit();
+    return value.toLocaleString("en-NG");
+  });
+  const [isInputFocused, setIsInputFocused] = useState(false);
 
   // Check if paying full amount
   const isFullPayment = initialDeposit >= fullTuition;
+
+  // Sync input value when initialDeposit changes from slider (but not when user is typing)
+  useEffect(() => {
+    if (!isInputFocused) {
+      setInputValue(initialDeposit.toLocaleString("en-NG"));
+    }
+  }, [initialDeposit, isInputFocused]);
 
   // Auto-set duration to 0 when full payment is made
   useEffect(() => {
@@ -85,7 +133,7 @@ export default function PaymentConfiguration({
   const paymentBreakdown = useMemo(() => {
     const installments = [];
     const today = new Date();
-    
+
     // Enrollment deposit (due today)
     installments.push({
       step: 1,
@@ -109,7 +157,7 @@ export default function PaymentConfiguration({
       for (let i = 0; i < installmentCount; i++) {
         const installmentDate = new Date(today);
         installmentDate.setMonth(today.getMonth() + i + 1);
-        
+
         // Last installment gets any remainder
         const amount =
           i === installmentCount - 1
@@ -201,7 +249,7 @@ export default function PaymentConfiguration({
     console.log("💳 Payment attempt - Email check:", {
       userEmail,
       type: typeof userEmail,
-      isEmpty: !userEmail || userEmail.trim() === '',
+      isEmpty: !userEmail || userEmail.trim() === "",
     });
 
     if (!selectedCenter) {
@@ -211,14 +259,20 @@ export default function PaymentConfiguration({
 
     // Get email - use prop first, then fetch directly if not available
     let emailToUse: string | undefined = userEmail;
-    
-    if (!emailToUse || typeof emailToUse !== 'string' || emailToUse.trim() === '') {
+
+    if (
+      !emailToUse ||
+      typeof emailToUse !== "string" ||
+      emailToUse.trim() === ""
+    ) {
       console.log("⚠️ Email not available in prop, fetching directly...");
-      emailToUse = await fetchEmailDirectly() ?? undefined;
-      
+      emailToUse = (await fetchEmailDirectly()) ?? undefined;
+
       if (!emailToUse) {
         console.error("❌ No valid email found from any source");
-        alert("User email is required for payment. Please log out and log back in, or contact support.");
+        alert(
+          "User email is required for payment. Please log out and log back in, or contact support."
+        );
         return;
       }
     }
@@ -226,50 +280,45 @@ export default function PaymentConfiguration({
     // Validate and clean email
     const cleanedEmail = emailToUse.trim().toLowerCase();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    
+
     console.log("Payment email validation:", {
       originalEmail: emailToUse,
       cleanedEmail: cleanedEmail,
-      isValid: emailRegex.test(cleanedEmail)
+      isValid: emailRegex.test(cleanedEmail),
     });
-    
+
     if (!emailRegex.test(cleanedEmail)) {
-      alert(`Please provide a valid email address. Current value: "${emailToUse}"`);
+      alert(
+        `Please provide a valid email address. Current value: "${emailToUse}"`
+      );
       return;
     }
 
     try {
       setProcessing(true);
-      
-      // Try to fetch center details with bank accounts (optional - won't block payment)
-      try {
-        await onboardingService.getCenterDetails(selectedCenter.id);
-      } catch (error: any) {
-        // Silently fail - bank accounts will be displayed on Paystack payment page
+
+      if (!course?.id) {
+        alert("Course information is required for payment");
+        setProcessing(false);
+        return;
       }
-      
-      // Generate unique reference
-      const reference = `TT-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      
-      // Initialize Paystack payment
-      const paymentInit = await initializePaystackPayment({
+
+      // Initialize payment via backend API (same pattern as wallet funding and installment payment)
+      const paymentInit = await initializeOnboardingPaymentClient({
         email: cleanedEmail,
-        amount: initialDeposit, // Amount in Naira (will be converted to kobo in API)
-        reference,
-        callback_url: `${window.location.origin}/onboarding/payment/callback`,
+        amount: initialDeposit, // Amount in Naira (will be converted to kobo in backend)
+        courseId: course.id,
+        centerId: selectedCenter.id,
+        initialDeposit,
+        duration: isFullPayment ? 0 : duration,
+        fullTuition,
         metadata: {
-          courseId: course?.id,
           courseName: course?.name,
-          centerId: selectedCenter?.id,
           centerName: selectedCenter?.name,
-          initialDeposit,
-          duration,
-          fullTuition,
         },
-        channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
       });
 
-      if (paymentInit.status && paymentInit.data.authorization_url) {
+      if (paymentInit.authorizationUrl) {
         // Save payment plan to localStorage before redirecting
         const paymentPlan: PaymentPlan = {
           initialDeposit,
@@ -281,25 +330,34 @@ export default function PaymentConfiguration({
             status: item.status,
           })),
         };
-        
+
         // Save to localStorage for retrieval after payment
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('pending_payment_plan', JSON.stringify({
-            paymentPlan,
-            reference,
-            course: course,
-            selectedCenter: selectedCenter,
-          }));
+        if (typeof window !== "undefined") {
+          localStorage.setItem(
+            "pending_payment_plan",
+            JSON.stringify({
+              paymentPlan,
+              reference: paymentInit.reference,
+              course: course,
+              selectedCenter: selectedCenter,
+            })
+          );
+          
+          // Store the reference in sessionStorage so we can verify after Paystack redirect
+          sessionStorage.setItem('pendingOnboardingPayment', paymentInit.reference);
         }
-        
+
         // Redirect to Paystack
-        window.location.href = paymentInit.data.authorization_url;
+        window.location.href = paymentInit.authorizationUrl;
       } else {
-        throw new Error('Failed to initialize payment');
+        throw new Error("Failed to initialize payment");
       }
     } catch (error: any) {
-      console.error('Payment initialization error:', error);
-      const errorMessage = error.message || 'Failed to initialize payment. Please check your Paystack configuration and try again.';
+      console.error("Payment initialization error:", error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to initialize payment. Please check your Paystack configuration and try again.";
       alert(errorMessage);
       setProcessing(false);
     }
@@ -329,7 +387,8 @@ export default function PaymentConfiguration({
             Configure Your Payment Plan
           </h2>
           <p className="text-gray-500 text-sm">
-            Customize your initial deposit and repayment schedule for {course.name}
+            Customize your initial deposit and repayment schedule for{" "}
+            {course.name}
           </p>
         </div>
 
@@ -339,14 +398,74 @@ export default function PaymentConfiguration({
             <Sliders size={20} className="text-indigo-600" />
             <span>Initial Deposit Amount</span>
           </div>
-          <div className="bg-gray-50 px-6 py-2.5 rounded-xl border border-gray-200 mb-4">
+          <div className="bg-gray-50 px-6 py-2.5 rounded-xl border border-gray-200 mb-4 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition-all">
             <div className="flex gap-4  text-gray-900">
               <span className="text-sm text-gray-400 font-medium">₦</span>
               <input
                 type="text"
-                value={formatNairaWithSymbolDirect(initialDeposit).replace('₦', '')}
+                value={inputValue}
+                onFocus={() => setIsInputFocused(true)}
+                onChange={(e) => {
+                  // Remove all non-numeric characters
+                  const rawValue = e.target.value.replace(/[^\d]/g, "");
+
+                  if (rawValue === "") {
+                    setInputValue("");
+                    return;
+                  }
+
+                  const numValue = parseInt(rawValue, 10);
+                  if (isNaN(numValue)) {
+                    return;
+                  }
+
+                  // Format with commas for display
+                  const formatted = numValue.toLocaleString("en-NG");
+                  setInputValue(formatted);
+
+                  // Update deposit value - allow any value while typing, but validate on blur
+                  // Clamp to max only, validate min on blur
+                  let finalValue = numValue;
+                  if (numValue > maxDeposit) {
+                    finalValue = fullTuition;
+                  } else if (numValue < 0) {
+                    finalValue = 0;
+                  } else {
+                    finalValue = numValue;
+                  }
+
+                  // Update the deposit state immediately so slider and other components react
+                  // Note: We allow values below minDeposit while typing, but will validate on blur
+                  if (finalValue !== initialDeposit) {
+                    setInitialDeposit(finalValue);
+                  }
+                }}
+                onBlur={(e) => {
+                  setIsInputFocused(false);
+                  // On blur, validate and set final value - enforce minDeposit (baseFee) as minimum
+                  const rawValue = e.target.value.replace(/[^\d]/g, "");
+                  const numValue = parseInt(rawValue, 10);
+
+                  let finalValue = minDeposit; // Default to baseFee (minimum allowed)
+                  if (!isNaN(numValue) && numValue > 0) {
+                    // Clamp to valid range: minDeposit (baseFee) to fullTuition
+                    if (numValue < minDeposit) {
+                      finalValue = minDeposit; // Enforce minimum baseFee
+                    } else if (numValue >= fullTuition) {
+                      finalValue = fullTuition;
+                    } else {
+                      finalValue = numValue;
+                    }
+                  } else {
+                    // If invalid or empty, set to minDeposit (baseFee)
+                    finalValue = minDeposit;
+                  }
+
+                  setInitialDeposit(finalValue);
+                  setInputValue(finalValue.toLocaleString("en-NG"));
+                }}
+                placeholder={minDeposit.toLocaleString("en-NG")}
                 className="bg-transparent text-left text-gray-600 text-sm font-semibold outline-none w-full"
-                readOnly
               />
             </div>
           </div>
@@ -356,11 +475,11 @@ export default function PaymentConfiguration({
             max={maxDeposit}
             value={initialDeposit}
             onChange={(value) => {
-              // If user sets to max (full payment), ensure it's exactly full tuition
-              if (value >= fullTuition) {
-                setInitialDeposit(fullTuition);
-              } else {
-                setInitialDeposit(value);
+              // Update deposit value - slider ensures value is always >= minDeposit
+              setInitialDeposit(value);
+              // Only update input if not focused (to avoid conflicts)
+              if (!isInputFocused) {
+                setInputValue(value.toLocaleString("en-NG"));
               }
             }}
           />
@@ -371,31 +490,44 @@ export default function PaymentConfiguration({
               <Calendar size={20} className="text-indigo-600" />
               <span>Repayment Duration</span>
             </div>
-            <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 ${isFullPayment ? 'opacity-50 pointer-events-none' : ''}`}>
-              {Array.from({ length: maxInstallments }, (_, i) => i + 1).map((months) => (
-                <button
-                  key={months}
-                  onClick={() => setDuration(months)}
-                  disabled={isFullPayment}
-                  className={`py-3 rounded-xl border text-sm font-medium transition-all ${
-                    duration === months
-                      ? "bg-indigo-600 text-white border-indigo-600"
-                      : "bg-white text-gray-500 border-gray-200 hover:border-indigo-300"
-                  } ${isFullPayment ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                >
-                  {months} {months === 1 ? "Month" : "Months"}
-                </button>
-              ))}
+            <div
+              className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 ${
+                isFullPayment ? "opacity-50 pointer-events-none" : ""
+              }`}
+            >
+              {Array.from({ length: maxInstallments }, (_, i) => i + 1).map(
+                (months) => (
+                  <button
+                    key={months}
+                    onClick={() => setDuration(months)}
+                    disabled={isFullPayment}
+                    className={`py-3 rounded-xl border text-sm font-medium transition-all ${
+                      duration === months
+                        ? "bg-indigo-600 text-white border-indigo-600"
+                        : "bg-white text-gray-500 border-gray-200 hover:border-indigo-300"
+                    } ${
+                      isFullPayment ? "cursor-not-allowed" : "cursor-pointer"
+                    }`}
+                  >
+                    {months} {months === 1 ? "Month" : "Months"}
+                  </button>
+                )
+              )}
             </div>
             {isFullPayment ? (
               <p className="mt-4 text-sm text-gray-500 font-normal">
                 Full payment selected. No installments required.
               </p>
-            ) : outstandingBalance > 0 && (
-              <p className="mt-4 text-sm text-gray-400 font-normal italic">
-                Spread the remaining balance of{" "}
-                <span className="font-bold">{formatNairaWithSymbolDirect(outstandingBalance)}</span> over {duration} {duration === 1 ? "month" : "months"}.
-              </p>
+            ) : (
+              outstandingBalance > 0 && (
+                <p className="mt-4 text-sm text-gray-400 font-normal italic">
+                  Spread the remaining balance of{" "}
+                  <span className="font-bold">
+                    {formatNairaWithSymbolDirect(outstandingBalance)}
+                  </span>{" "}
+                  over {duration} {duration === 1 ? "month" : "months"}.
+                </p>
+              )
             )}
           </div>
         </div>
@@ -412,7 +544,10 @@ export default function PaymentConfiguration({
                 step={item.step}
                 title={item.title}
                 date={item.date}
-                amount={formatNairaWithSymbolDirect(item.amount).replace('₦', '')}
+                amount={formatNairaWithSymbolDirect(item.amount).replace(
+                  "₦",
+                  ""
+                )}
                 status={item.status}
               />
             ))}
@@ -470,7 +605,9 @@ export default function PaymentConfiguration({
               disabled={processing}
               className="w-full py-4 bg-indigo-600 text-white rounded-xl font-normal shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {processing ? "Processing..." : `Pay ${formatNairaWithSymbolDirect(initialDeposit)}`}
+              {processing
+                ? "Processing..."
+                : `Pay ${formatNairaWithSymbolDirect(initialDeposit)}`}
             </button>
           </div>
           <p className="flex items-center justify-center gap-2 text-xs font-normal text-gray-400 mt-4 uppercase tracking-widest">

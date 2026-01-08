@@ -112,14 +112,16 @@ const LoginPageContent = () => {
 
           {/* Logo */}
           <div className="relative z-10">
-            <Image
-              src="/images/Auth-Logo.png"
-              alt="TT Showcase Logo"
-              width={160}
-              height={40}
-              className="h-10 w-auto"
-              priority
-            />
+            <Link href="/">
+              <Image
+                src="/images/Auth-Logo.png"
+                alt="TT Showcase Logo"
+                width={160}
+                height={40}
+                className="h-10 w-auto"
+                priority
+              />
+            </Link>
           </div>
 
           {/* Content */}

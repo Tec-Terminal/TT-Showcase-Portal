@@ -185,14 +185,90 @@ export default async function DashboardPage() {
     return message;
   };
 
-  // Progress should be 0 for now
-  const progress = 0;
+  // Calculate course progress based on start and end dates
+  const calculateProgress = () => {
+    if (!batch?.startDate || !batch?.endDate) {
+      return {
+        progress: 0,
+        daysElapsed: 0,
+        daysRemaining: 0,
+        totalDays: 0,
+        hasStarted: false,
+        hasEnded: false,
+      };
+    }
+
+    const startDate = new Date(batch.startDate);
+    const endDate = new Date(batch.endDate);
+    const today = new Date();
+    
+    // Reset time to start of day for accurate day calculations
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+
+    const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Check if course has started
+    if (today < startDate) {
+      return {
+        progress: 0,
+        daysElapsed: 0,
+        daysRemaining: Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)),
+        totalDays,
+        hasStarted: false,
+        hasEnded: false,
+      };
+    }
+
+    // Check if course has ended
+    if (today >= endDate) {
+      return {
+        progress: 100,
+        daysElapsed: totalDays,
+        daysRemaining: 0,
+        totalDays,
+        hasStarted: true,
+        hasEnded: true,
+      };
+    }
+
+    // Course is in progress
+    const daysElapsed = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    const daysRemaining = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    const progress = Math.min(100, Math.max(0, Math.round((daysElapsed / totalDays) * 100)));
+
+    return {
+      progress,
+      daysElapsed,
+      daysRemaining,
+      totalDays,
+      hasStarted: true,
+      hasEnded: false,
+    };
+  };
+
+  const progressData = calculateProgress();
+  const progress = progressData.progress;
 
   const getProgressText = () => {
     if (!batch || batchCode === "Not yet assigned to a batch") {
       return "Classes have not started";
     }
-    return "Classes have not started";
+
+    if (!batch?.startDate || !batch?.endDate) {
+      return "Classes have not started";
+    }
+
+    if (!progressData.hasStarted) {
+      return `Classes start in ${progressData.daysRemaining} day${progressData.daysRemaining !== 1 ? 's' : ''}`;
+    }
+
+    if (progressData.hasEnded) {
+      return "Course completed";
+    }
+
+    return `${progressData.daysElapsed} day${progressData.daysElapsed !== 1 ? 's' : ''} elapsed, ${progressData.daysRemaining} day${progressData.daysRemaining !== 1 ? 's' : ''} remaining`;
   };
 
   return (
@@ -272,7 +348,8 @@ export default async function DashboardPage() {
                   <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
                     <Clock size={15} />
                     {batch?.duration ??
-                      dashboardData.currentCourse.duration} months
+                      dashboardData.currentCourse.duration}{" "}
+                    months
                   </p>
                 </div>
                 <div className="p-4 rounded-lg border border-gray-200 bg-gray-50/30">
@@ -297,17 +374,11 @@ export default async function DashboardPage() {
                 <h2 className="text-md font-bold text-gray-800">
                   {scheduleString}
                 </h2>
-                <p className="text-xs text-gray-500 mt-2">
+                {/* <p className="text-xs text-gray-500 mt-2">
                   {batch?.status === "ACTIVE"
                     ? "Active Batch"
                     : batch?.status || "N/A"}
-                </p>
-                {batch?.startDate && batch?.endDate && (
-                  <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
-                    <Calendar size={12} />
-                    {formatDate(batch.startDate)} - {formatDate(batch.endDate)}
-                  </p>
-                )}
+                </p> */}
               </div>
 
               <div>
@@ -323,6 +394,12 @@ export default async function DashboardPage() {
                 <p className="text-[10px] text-gray-400 mt-2">
                   {getProgressText()}
                 </p>
+                {batch?.startDate && batch?.endDate && (
+                  <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                    <Calendar size={12} />
+                    {formatDate(batch.startDate)} - {formatDate(batch.endDate)}
+                  </p>
+                )}
               </div>
             </div>
 

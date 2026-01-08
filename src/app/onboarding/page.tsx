@@ -11,7 +11,7 @@ import { LogOut, ArrowRightLeft } from "lucide-react";
 import { HiLogout } from "react-icons/hi";
 import { useRequireAuth } from "@/hooks/useAuth";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { logoutUser, getProfileClient } from "@/lib/network";
+import { logoutUser, getProfileClient, verifyOnboardingPaymentClient } from "@/lib/network";
 import { decodeJWT } from "@/lib/utils/jwt";
 
 const STORAGE_KEY = "onboarding_form_data";
@@ -354,6 +354,148 @@ export default function OnboardingFlow({ initialData }: { initialData: any }) {
       }
     }
   }, [step, formData]);
+
+  // Handle Paystack callback (similar to payments page)
+  useEffect(() => {
+    if (typeof window !== "undefined" && !isAuthLoading) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const reference = urlParams.get("reference");
+      const trxref = urlParams.get("trxref");
+      const status = urlParams.get("status");
+
+      // If we have payment callback params, handle them
+      const paymentReference = reference || trxref;
+      if (paymentReference) {
+        const handlePaymentCallback = async () => {
+          try {
+            const pendingOnboardingRef = sessionStorage.getItem("pendingOnboardingPayment");
+            const isOnboardingPayment = pendingOnboardingRef !== null || paymentReference;
+
+            if (isOnboardingPayment) {
+              // Get saved payment plan and form data for enrollment
+              const savedPaymentPlan = localStorage.getItem("pending_payment_plan");
+              if (!savedPaymentPlan) {
+                throw new Error("Payment plan data not found. Please contact support.");
+              }
+
+              const paymentInfo = JSON.parse(savedPaymentPlan);
+              
+              // Get guardian email from form data if available
+              let guardianEmail: string | undefined;
+              if (formData.profile?.guardianEmail && formData.profile?.hasGuardian) {
+                guardianEmail = formData.profile.guardianEmail;
+              }
+
+              // Call verify with enrollment data - backend will create student automatically
+              const verificationResult = await verifyOnboardingPaymentClient({
+                reference: paymentReference,
+                guardianEmail,
+                profile: formData.profile,
+                selectedCenter: paymentInfo.selectedCenter || formData.selectedCenter,
+                selectedCourse: paymentInfo.course || formData.selectedCourse,
+                paymentPlan: paymentInfo.paymentPlan,
+              });
+
+              // Clear the stored reference after successful verification
+              sessionStorage.removeItem("pendingOnboardingPayment");
+
+              // Store student data if returned from verification
+              if (verificationResult.student) {
+                // Save student data for success page
+                const studentData = {
+                  studentId: verificationResult.student.studentId,
+                  fullName: verificationResult.student.fullName,
+                  email: verificationResult.student.email,
+                  center: verificationResult.student.center,
+                  course: verificationResult.student.course,
+                };
+                
+                // Store in localStorage for success page (before cleanup)
+                localStorage.setItem(`payment_data_${paymentReference}`, JSON.stringify({
+                  paymentPlan: paymentInfo.paymentPlan,
+                  courseName: verificationResult.student.course?.name || paymentInfo.course?.name,
+                  userName: verificationResult.student.fullName,
+                  userEmail: verificationResult.student.email,
+                  paymentMethod: "Paystack",
+                  centerName: verificationResult.student.center?.name || paymentInfo.selectedCenter?.name,
+                  studentId: verificationResult.student.studentId,
+                }));
+
+                // Clean up pending data since enrollment is complete
+                localStorage.removeItem("pending_payment_plan");
+                localStorage.removeItem("onboarding_form_data");
+              }
+
+              // Clean up URL
+              window.history.replaceState(
+                {},
+                document.title,
+                window.location.pathname
+              );
+
+              // If we're on step 3 (payment configuration), move to success step
+              if (step === 3) {
+                // Payment plan should already be saved from verification response
+                if (verificationResult.student) {
+                  setFormData((prev) => ({ 
+                    ...prev, 
+                    paymentPlan: paymentInfo.paymentPlan 
+                  }));
+                  setStep(4); // Move to success page
+                }
+              }
+            }
+          } catch (err: any) {
+            console.error("Error verifying payment:", err);
+            const errorMessage =
+              err.response?.data?.message ||
+              err.message ||
+              "Payment verification failed. Please contact support if the payment was successful.";
+
+            // Show error but don't block the user
+            alert(errorMessage);
+
+            // Clear stored reference on error
+            sessionStorage.removeItem("pendingOnboardingPayment");
+
+            // Clean up URL
+            window.history.replaceState(
+              {},
+              document.title,
+              window.location.pathname
+            );
+          }
+        };
+
+        // Only verify if status indicates success or if no status (Paystack sometimes doesn't include it)
+        if (
+          status === "success" ||
+          urlParams.get("success") === "true" ||
+          !status
+        ) {
+          handlePaymentCallback();
+        } else if (
+          status === "failed" ||
+          urlParams.get("success") === "false"
+        ) {
+          // Payment failed
+          console.error("Payment failed");
+          alert("Payment was not successful. Please try again.");
+
+          // Clear stored reference on failure
+          sessionStorage.removeItem("pendingOnboardingPayment");
+
+          // Clean up URL
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname
+          );
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthLoading]);
 
   const steps = [
     { id: 1, label: "Basic Information" },

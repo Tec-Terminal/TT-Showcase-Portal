@@ -44,6 +44,11 @@ export default function ProfileForm({ initialData, onNext }: ProfileFormProps) {
   });
 
   const selectedLocation = watch("trainingLocation");
+  const selectedCentre = watch("centre");
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [restoredCentre, setRestoredCentre] = useState<string | null>(
+    initialData?.centre || initialData?.center?.id || null
+  );
 
   // Load locations on mount - only show states that have centers
   useEffect(() => {
@@ -83,6 +88,20 @@ export default function ProfileForm({ initialData, onNext }: ProfileFormProps) {
         if (filteredLocations.length === 0) {
           setLocationError("No locations with available centers at this time.");
         }
+        
+        // If we have a restored location, load its centers immediately
+        const restoredLocation = initialData?.trainingLocation || initialData?.center?.state;
+        if (restoredLocation && filteredLocations.some(loc => loc.id === restoredLocation)) {
+          try {
+            setLoadingCenters(true);
+            const centersData = await onboardingService.getCentersByLocation(restoredLocation);
+            setCenters(centersData.centers);
+          } catch (error) {
+            console.error("Error loading centers for restored location:", error);
+          } finally {
+            setLoadingCenters(false);
+          }
+        }
       } catch (error) {
         console.error("Error loading locations:", error);
         const errorMessage = error instanceof Error ? error.message : "Failed to load locations. Please try again.";
@@ -92,7 +111,7 @@ export default function ProfileForm({ initialData, onNext }: ProfileFormProps) {
       }
     };
     loadLocations();
-  }, []);
+  }, [initialData]);
 
   // Load centers when location is selected
   useEffect(() => {
@@ -104,8 +123,23 @@ export default function ProfileForm({ initialData, onNext }: ProfileFormProps) {
             selectedLocation
           );
           setCenters(data.centers);
-          // Reset center selection when location changes
-          setValue("centre", "");
+          
+          // Only reset center selection if this is not the initial load and location actually changed
+          // If we're restoring from saved data, keep the center selection
+          if (isInitialLoad && restoredCentre) {
+            // Restore the saved center if it exists in the loaded centers
+            const centerExists = data.centers.some((c: Center) => c.id === restoredCentre);
+            if (centerExists) {
+              setValue("centre", restoredCentre);
+              setRestoredCentre(null); // Clear after restoring
+            } else {
+              setValue("centre", "");
+            }
+            setIsInitialLoad(false);
+          } else if (!isInitialLoad) {
+            // Only reset if location changed after initial load
+            setValue("centre", "");
+          }
         } catch (error) {
           console.error("Error loading centers:", error);
           setCenters([]);
@@ -114,11 +148,51 @@ export default function ProfileForm({ initialData, onNext }: ProfileFormProps) {
         }
       } else {
         setCenters([]);
-        setValue("centre", "");
+        if (!isInitialLoad) {
+          setValue("centre", "");
+        }
       }
     };
     loadCenters();
-  }, [selectedLocation, setValue]);
+  }, [selectedLocation, setValue, isInitialLoad, restoredCentre]);
+
+  // Watch for changes and save to localStorage immediately
+  useEffect(() => {
+    // Save form data to localStorage whenever trainingLocation or centre changes
+    if (typeof window !== "undefined") {
+      try {
+        const currentData = localStorage.getItem("onboarding_form_data");
+        const parsed = currentData ? JSON.parse(currentData) : {};
+        
+        // Get all current form values
+        const formValues = watch();
+        
+        // Find the selected center object if centre is selected
+        const selectedCenterObj = selectedCentre 
+          ? centers.find((c) => c.id === selectedCentre) 
+          : null;
+        
+        localStorage.setItem(
+          "onboarding_form_data",
+          JSON.stringify({
+            ...parsed,
+            step: parsed.step || 1,
+            profile: {
+              ...parsed.profile,
+              ...formValues,
+              trainingLocation: selectedLocation || parsed.profile?.trainingLocation || "",
+              centre: selectedCentre || parsed.profile?.centre || "",
+              hasGuardian,
+            },
+            selectedCenter: selectedCenterObj || parsed.selectedCenter || null,
+          })
+        );
+      } catch (error) {
+        console.error("Error saving form data:", error);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLocation, selectedCentre, centers, hasGuardian]);
 
   const onSubmit = async (data: any) => {
     // Find the selected center object

@@ -476,12 +476,130 @@ export const payInstallmentClient = async (data: PayInstallmentRequest): Promise
   }
 };
 
-export const verifyWalletFundingClient = async (reference: string) => {
-  const res = await clientApi.post('/portal/student/wallet/verify', { reference });
+export const verifyWalletFundingClient = async (reference: string, guardianEmail?: string) => {
+  const res = await clientApi.post('/portal/student/wallet/verify', { 
+    reference,
+    ...(guardianEmail && { guardianEmail })
+  });
   return res.data;
 };
 
-export const verifyInstallmentPaymentClient = async (reference: string) => {
-  const res = await clientApi.post('/portal/student/payments/verify', { reference });
+export const verifyInstallmentPaymentClient = async (reference: string, guardianEmail?: string) => {
+  const res = await clientApi.post('/portal/student/payments/verify', { 
+    reference,
+    ...(guardianEmail && { guardianEmail })
+  });
   return res.data;
+};
+
+export interface InitializeOnboardingPaymentRequest {
+  email: string;
+  amount: number;
+  courseId: string;
+  centerId: string;
+  initialDeposit: number;
+  duration: number;
+  fullTuition: number;
+  metadata?: {
+    [key: string]: any;
+  };
+}
+
+export interface InitializeOnboardingPaymentResponse {
+  authorizationUrl: string;
+  accessCode: string;
+  reference: string;
+}
+ 
+export const initializeOnboardingPaymentClient = async (
+  data: InitializeOnboardingPaymentRequest
+): Promise<InitializeOnboardingPaymentResponse> => {
+  try {
+    const res = await clientApi.post('/portal/onboarding/initialize-payment', data);
+    return res.data;
+  } catch (error: any) {
+    console.error('Onboarding payment initialization error:', {
+      url: '/portal/onboarding/initialize-payment',
+      data,
+      error: error.response?.data || error.message,
+      status: error.response?.status,
+    });
+    throw error;
+  }
+};
+
+export interface VerifyOnboardingPaymentRequest {
+  reference: string;
+  guardianEmail?: string;
+  profile: {
+    trainingLocation: string;
+    centre: string;
+    studentAddress?: string;
+    guardianName?: string;
+    guardianPhone?: string;
+    guardianEmail?: string;
+    guardianAddress?: string;
+    hasGuardian?: boolean;
+  };
+  selectedCenter: {
+    id: string;
+    name?: string;
+  };
+  selectedCourse: {
+    id: string;
+    name?: string;
+  };
+  paymentPlan: {
+    initialDeposit: number;
+    duration: number;
+    installments: Array<{
+      title: string;
+      date: string;
+      amount: number;
+      status?: string;
+    }>;
+  };
+}
+
+export interface VerifyOnboardingPaymentResponse {
+  success: boolean;
+  message: string;
+  reference: string;
+  amount: number;
+  currency: string;
+  status: string;
+  transactionDate: string;
+  student?: {
+    id: string;
+    studentId: string;
+    fullName: string;
+    email: string;
+    center?: {
+      id: string;
+      name: string;
+    };
+    course?: {
+      id: string;
+      name: string;
+    };
+    status: string;
+  };
+  metadata: any;
+}
+
+export const verifyOnboardingPaymentClient = async (
+  data: VerifyOnboardingPaymentRequest
+): Promise<VerifyOnboardingPaymentResponse> => {
+  try {
+    const res = await clientApi.post('/portal/onboarding/verify-payment', data);
+    return res.data;
+  } catch (error: any) {
+    console.error('Onboarding payment verification error:', {
+      url: '/portal/onboarding/verify-payment',
+      data,
+      error: error.response?.data || error.message,
+      status: error.response?.status,
+    });
+    throw error;
+  }
 };

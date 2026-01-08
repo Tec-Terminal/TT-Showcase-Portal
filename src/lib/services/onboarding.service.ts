@@ -46,6 +46,7 @@ export interface Course {
   duration: number;
   type: string;
   status: string;
+  description?: string;
   paymentInfo: {
     minFee: number;
     maxFee: number;
