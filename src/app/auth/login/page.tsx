@@ -116,8 +116,8 @@ const LoginPageContent = () => {
               <Image
                 src="/images/Auth-Logo.png"
                 alt="TT Showcase Logo"
-                width={160}
-                height={40}
+                width={180}
+                height={60}
                 className="h-10 w-auto"
                 priority
               />

@@ -690,8 +690,8 @@ export default function OnboardingFlow({ initialData }: { initialData: any }) {
               <Image
                 src="/images/Logo.png"
                 alt="TT Showcase"
-                width={140}
-                height={35}
+                width={180}
+                height={60}
                 className="object-contain"
               />
             </div>

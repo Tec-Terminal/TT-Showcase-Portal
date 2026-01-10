@@ -281,8 +281,8 @@ export default async function DashboardPage() {
               <Image
                 src="/images/Logo.png"
                 alt="TT Showcase"
-                width={140}
-                height={35}
+                width={160}
+                height={60}
                 className="object-contain"
               />
             </Link>

@@ -18,8 +18,8 @@ export default function EmailVerifiedPage() {
           <Image
             src="/images/Logo.png"
             alt="TecTerminal"
-            width={160}
-            height={40}
+            width={180}
+            height={60}
             className="object-contain"
           />
         </div>
