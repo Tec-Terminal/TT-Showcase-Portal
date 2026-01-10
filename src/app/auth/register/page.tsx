@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -20,10 +20,12 @@ const RegistrationPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [registrationError, setRegistrationError] = useState<string | null>(null);
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormData>({
     resolver: yupResolver(registerSchema) as any,
@@ -37,19 +39,40 @@ const RegistrationPage = () => {
     },
   });
 
+  // Watch email field to clear error when user modifies it
+  const emailValue = watch("email");
+  const [lastSubmittedEmail, setLastSubmittedEmail] = useState<string>("");
+
+  // Clear error when user modifies the email field after a failed submission
+  useEffect(() => {
+    if (
+      registrationError &&
+      emailValue &&
+      emailValue !== lastSubmittedEmail &&
+      lastSubmittedEmail
+    ) {
+      setRegistrationError(null);
+    }
+  }, [emailValue, registrationError, lastSubmittedEmail]);
+
   const registerMutation = useMutation({
     mutationFn: registerUser,
     onSuccess: (data, variables) => {
       const userEmail =
         data?.email || (data as any)?.user?.email || variables.email;
+      setRegistrationError(null);
       router.push(`/verify-email?email=${encodeURIComponent(userEmail)}`);
     },
     onError: (error: Error) => {
       console.error("Registration error:", error);
+      setRegistrationError(error.message || "Registration failed. Please try again.");
     },
   });
 
   const onSubmit = async (data: RegisterFormData) => {
+    // Clear any previous errors and track submitted email
+    setRegistrationError(null);
+    setLastSubmittedEmail(data.email);
     const formattedPhone = data.phone
       ? `0${data.phone.replace(/^\0/, "")}`
       : undefined;
@@ -100,7 +123,7 @@ const RegistrationPage = () => {
 
           {/* Footer Text */}
           <p className="relative z-10 text-sm text-gray-200">
-            2026 TT Showcase Student Portal. All rights reserved.
+            2026 TecTerminal Student Portal. All rights reserved.
           </p>
         </div>
 
@@ -135,6 +158,14 @@ const RegistrationPage = () => {
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-10">
+              {/* Registration Error Alert */}
+              {registrationError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                  <p className="font-semibold">Registration Error</p>
+                  <p>{registrationError}</p>
+                </div>
+              )}
+
               {/* First Name and Last Name */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
@@ -180,13 +211,36 @@ const RegistrationPage = () => {
                   {...register("email")}
                   type="email"
                   placeholder="Email"
-                  className="w-full px-4 py-2 text-gray-600 placeholder:text-gray-400 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className={`w-full px-4 py-2 text-gray-600 placeholder:text-gray-400 border rounded-lg focus:ring-2 outline-none ${
+                    errors.email ||
+                    (registrationError &&
+                      (registrationError.toLowerCase().includes("email") ||
+                        registrationError
+                          .toLowerCase()
+                          .includes("already exists") ||
+                        registrationError.toLowerCase().includes("duplicate") ||
+                        registrationError.toLowerCase().includes("taken")))
+                      ? "border-red-300 focus:ring-red-500 focus:border-red-500"
+                      : "border-gray-300 focus:ring-indigo-500"
+                  }`}
                 />
                 {errors.email && (
                   <p className="mt-1 text-xs text-red-500">
                     {errors.email.message}
                   </p>
                 )}
+                {registrationError &&
+                  (registrationError.toLowerCase().includes("email") ||
+                    registrationError
+                      .toLowerCase()
+                      .includes("already exists") ||
+                    registrationError.toLowerCase().includes("duplicate") ||
+                    registrationError.toLowerCase().includes("taken")) &&
+                  !errors.email && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {registrationError}
+                    </p>
+                  )}
               </div>
 
               <div className="space-y-1">
@@ -293,7 +347,9 @@ const RegistrationPage = () => {
 
               <button
                 type="submit"
-                disabled={isSubmitting || registerMutation.isPending || !termsAccepted}
+                disabled={
+                  isSubmitting || registerMutation.isPending || !termsAccepted
+                }
                 className="w-full bg-[#6344E7] text-white py-3 rounded-xl font-semibold hover:bg-[#5235c9] transition-all shadow-lg shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#6344E7]"
               >
                 {isSubmitting || registerMutation.isPending

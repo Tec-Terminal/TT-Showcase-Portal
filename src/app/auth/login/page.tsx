@@ -137,7 +137,7 @@ const LoginPageContent = () => {
 
           {/* Footer Text */}
           <p className="relative z-10 text-sm text-gray-200">
-            2026 TT Showcase Student Portal. All rights reserved.
+            2026 TecTerminal Student Portal. All rights reserved.
           </p>
         </div>
 

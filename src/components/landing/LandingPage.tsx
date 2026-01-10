@@ -44,7 +44,7 @@ export default function LandingPage() {
           {/* Left Column - Text and CTAs */}
           <div>
             <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
-              Welcome to TT Showcase
+              Welcome to TecTerminal Student Portal 
             </h1>
             <p className="text-lg text-gray-600 mb-8 leading-relaxed">
               Your educational portal for everything TecTerminal. Manage your registration, payments, and course schedules in one secure, centralized portal.
@@ -79,7 +79,7 @@ export default function LandingPage() {
 
           {/* Right Column - Image */}
           <div className="relative">
-            <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden">
+            <div className="relative w-full aspect-4/3 rounded-2xl overflow-hidden">
               <Image
                 src="/images/landing-page.png"
                 alt="Student working on laptop"
@@ -231,7 +231,7 @@ export default function LandingPage() {
       <footer className="bg-white border-t border-gray-100 py-8">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center">
           <p className="text-sm text-gray-500">
-            © 2026 TT SHOWCASE • POWERED BY TECTERMINAL
+            © 2026 TT SHOWCASE STUDENT PORTAL • POWERED BY TECTERMINAL
           </p>
         </div>
       </footer>

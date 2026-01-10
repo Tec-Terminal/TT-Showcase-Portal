@@ -11,7 +11,11 @@ import { LogOut, ArrowRightLeft } from "lucide-react";
 import { HiLogout } from "react-icons/hi";
 import { useRequireAuth } from "@/hooks/useAuth";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { logoutUser, getProfileClient, verifyOnboardingPaymentClient } from "@/lib/network";
+import {
+  logoutUser,
+  getProfileClient,
+  verifyOnboardingPaymentClient,
+} from "@/lib/network";
 import { decodeJWT } from "@/lib/utils/jwt";
 
 const STORAGE_KEY = "onboarding_form_data";
@@ -93,7 +97,7 @@ export default function OnboardingFlow({ initialData }: { initialData: any }) {
   // Helper function to get email from userInfo cookie (most reliable - set during login)
   const getEmailFromCookie = (): string | null => {
     if (typeof window === "undefined") return null;
-    
+
     try {
       const cookies = document.cookie.split(";");
       for (const cookie of cookies) {
@@ -195,12 +199,22 @@ export default function OnboardingFlow({ initialData }: { initialData: any }) {
               );
               setUserFullName(loginData.user.fullName);
               // Only set email if we don't already have one from cookie
-              if (!cookieEmail && loginData.user.email && isValidEmail(loginData.user.email)) {
-                console.log("✅ Found email in sessionStorage:", loginData.user.email);
+              if (
+                !cookieEmail &&
+                loginData.user.email &&
+                isValidEmail(loginData.user.email)
+              ) {
+                console.log(
+                  "✅ Found email in sessionStorage:",
+                  loginData.user.email
+                );
                 setUserEmail(loginData.user.email);
               }
               // If we have both name and email, we're done
-              if (cookieEmail || (loginData.user.email && isValidEmail(loginData.user.email))) {
+              if (
+                cookieEmail ||
+                (loginData.user.email && isValidEmail(loginData.user.email))
+              ) {
                 return;
               }
             }
@@ -228,7 +242,11 @@ export default function OnboardingFlow({ initialData }: { initialData: any }) {
           }
 
           // Set email if available (don't overwrite cookie email)
-          if (!cookieEmail && data.user?.email && isValidEmail(data.user.email)) {
+          if (
+            !cookieEmail &&
+            data.user?.email &&
+            isValidEmail(data.user.email)
+          ) {
             console.log("✅ Found email in API:", data.user.email);
             setUserEmail(data.user.email);
             // If we have both name and email, we're done
@@ -263,7 +281,11 @@ export default function OnboardingFlow({ initialData }: { initialData: any }) {
           console.log("✅ Found name in initialData:", name);
           setUserFullName(name);
           // Only set email if we don't already have one from cookie
-          if (!cookieEmail && initialData.email && isValidEmail(initialData.email)) {
+          if (
+            !cookieEmail &&
+            initialData.email &&
+            isValidEmail(initialData.email)
+          ) {
             setUserEmail(initialData.email);
           }
           return; // Found it, we're done
@@ -368,21 +390,31 @@ export default function OnboardingFlow({ initialData }: { initialData: any }) {
       if (paymentReference) {
         const handlePaymentCallback = async () => {
           try {
-            const pendingOnboardingRef = sessionStorage.getItem("pendingOnboardingPayment");
-            const isOnboardingPayment = pendingOnboardingRef !== null || paymentReference;
+            const pendingOnboardingRef = sessionStorage.getItem(
+              "pendingOnboardingPayment"
+            );
+            const isOnboardingPayment =
+              pendingOnboardingRef !== null || paymentReference;
 
             if (isOnboardingPayment) {
               // Get saved payment plan and form data for enrollment
-              const savedPaymentPlan = localStorage.getItem("pending_payment_plan");
+              const savedPaymentPlan = localStorage.getItem(
+                "pending_payment_plan"
+              );
               if (!savedPaymentPlan) {
-                throw new Error("Payment plan data not found. Please contact support.");
+                throw new Error(
+                  "Payment plan data not found. Please contact support."
+                );
               }
 
               const paymentInfo = JSON.parse(savedPaymentPlan);
-              
+
               // Get guardian email from form data if available
               let guardianEmail: string | undefined;
-              if (formData.profile?.guardianEmail && formData.profile?.hasGuardian) {
+              if (
+                formData.profile?.guardianEmail &&
+                formData.profile?.hasGuardian
+              ) {
                 guardianEmail = formData.profile.guardianEmail;
               }
 
@@ -391,7 +423,8 @@ export default function OnboardingFlow({ initialData }: { initialData: any }) {
                 reference: paymentReference,
                 guardianEmail,
                 profile: formData.profile,
-                selectedCenter: paymentInfo.selectedCenter || formData.selectedCenter,
+                selectedCenter:
+                  paymentInfo.selectedCenter || formData.selectedCenter,
                 selectedCourse: paymentInfo.course || formData.selectedCourse,
                 paymentPlan: paymentInfo.paymentPlan,
               });
@@ -409,17 +442,24 @@ export default function OnboardingFlow({ initialData }: { initialData: any }) {
                   center: verificationResult.student.center,
                   course: verificationResult.student.course,
                 };
-                
+
                 // Store in localStorage for success page (before cleanup)
-                localStorage.setItem(`payment_data_${paymentReference}`, JSON.stringify({
-                  paymentPlan: paymentInfo.paymentPlan,
-                  courseName: verificationResult.student.course?.name || paymentInfo.course?.name,
-                  userName: verificationResult.student.fullName,
-                  userEmail: verificationResult.student.email,
-                  paymentMethod: "Paystack",
-                  centerName: verificationResult.student.center?.name || paymentInfo.selectedCenter?.name,
-                  studentId: verificationResult.student.studentId,
-                }));
+                localStorage.setItem(
+                  `payment_data_${paymentReference}`,
+                  JSON.stringify({
+                    paymentPlan: paymentInfo.paymentPlan,
+                    courseName:
+                      verificationResult.student.course?.name ||
+                      paymentInfo.course?.name,
+                    userName: verificationResult.student.fullName,
+                    userEmail: verificationResult.student.email,
+                    paymentMethod: "Paystack",
+                    centerName:
+                      verificationResult.student.center?.name ||
+                      paymentInfo.selectedCenter?.name,
+                    studentId: verificationResult.student.studentId,
+                  })
+                );
 
                 // Clean up pending data since enrollment is complete
                 localStorage.removeItem("pending_payment_plan");
@@ -437,9 +477,9 @@ export default function OnboardingFlow({ initialData }: { initialData: any }) {
               if (step === 3) {
                 // Payment plan should already be saved from verification response
                 if (verificationResult.student) {
-                  setFormData((prev) => ({ 
-                    ...prev, 
-                    paymentPlan: paymentInfo.paymentPlan 
+                  setFormData((prev) => ({
+                    ...prev,
+                    paymentPlan: paymentInfo.paymentPlan,
                   }));
                   setStep(4); // Move to success page
                 }
@@ -720,7 +760,11 @@ export default function OnboardingFlow({ initialData }: { initialData: any }) {
           </div>
         )}
 
-        <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 gap-4">
+        <div
+          className={`${
+            step === 4 ? "hidden" : "flex"
+          }  flex-col md:flex-row md:items-center justify-between pb-4 gap-4`}
+        >
           <div className="flex items-center gap-6">
             {steps.map((s) => (
               <button
